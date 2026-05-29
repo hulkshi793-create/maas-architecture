@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MaaS → DeepSeek 请求体/响应体 逐阶段变化追踪</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #020617;
+      min-height: 100vh;
+      padding: 2rem;
+      color: #e2e8f0;
+    }
+    .container { max-width: 1300px; margin: 0 auto; }
+    .header { margin-bottom: 2rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #22d3ee; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    h1 { font-size: 1.3rem; font-weight: 700; }
+    .subtitle { color: #94a3b8; font-size: 0.8rem; margin-left: 1.75rem; }
+
+    /* Flow stage */
+    .stage { display: flex; gap: 1rem; margin-bottom: 0.75rem; align-items: flex-start; }
+    .stage-left {
+      min-width: 260px; display: flex; flex-direction: column; gap: 0.25rem;
+    }
+    .stage-num {
+      font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+      display: inline-block; width: fit-content;
+    }
+    .num-client { background: rgba(148,163,184,0.2); color: #94a3b8; }
+    .num-gateway { background: rgba(52,211,153,0.2); color: #34d399; }
+    .num-plugin { background: rgba(251,191,36,0.2); color: #fbbf24; }
+    .num-auth { background: rgba(251,113,133,0.2); color: #fb7185; }
+    .num-adapter { background: rgba(251,146,60,0.2); color: #fb923c; }
+    .num-vendor { background: rgba(148,163,184,0.15); color: #94a3b8; }
+    .num-response { background: rgba(168,85,247,0.2); color: #a78bfa; }
+
+    .stage-title { font-size: 0.85rem; font-weight: 600; }
+    .stage-desc { font-size: 0.7rem; color: #94a3b8; line-height: 1.4; }
+
+    .stage-right {
+      flex: 1; display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .code-block {
+      background: #0f172a; border: 1px solid #1e293b; border-radius: 8px;
+      padding: 0.75rem 1rem; font-size: 0.68rem; line-height: 1.55;
+      overflow-x: auto; white-space: pre; color: #e2e8f0;
+      position: relative;
+    }
+    .code-block .key { color: #67e8f9; }
+    .code-block .str { color: #a5d6a7; }
+    .code-block .num { color: #ffcc80; }
+    .code-block .bool { color: #ef9a9a; }
+    .code-block .comment { color: #64748b; }
+    .code-block .added { color: #34d399; }
+    .code-block .removed { color: #fb7185; text-decoration: line-through; }
+    .code-block .changed { color: #fbbf24; }
+    .code-label {
+      font-size: 0.6rem; color: #64748b; margin-bottom: 0.25rem;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+
+    .divider {
+      border: none; border-top: 1px dashed #1e293b; margin: 0.75rem 0 0.75rem 260px;
+    }
+
+    .card-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 2rem; }
+    .card {
+      background: rgba(15, 23, 42, 0.5); border-radius: 0.75rem;
+      border: 1px solid #1e293b; padding: 1rem;
+    }
+    .card h3 { font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; color: #e2e8f0; }
+    .card p, .card li { font-size: 0.65rem; color: #94a3b8; line-height: 1.5; }
+    .card ul { list-style: none; }
+    .footer { text-align: center; margin-top: 2rem; color: #475569; font-size: 0.7rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <div class="header-row">
+    <div class="pulse-dot"></div>
+    <h1>MaaS → DeepSeek 请求体/响应体 逐阶段变化追踪</h1>
+  </div>
+  <p class="subtitle">用户问"什么是MaaS平台？" → 路由到 deepseek-v4-pro → 返回回答 · 10 个阶段</p>
+</div>
+
+<!-- ===== STAGE 0: 客户端原始请求 ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-client">阶段 0</span>
+    <div class="stage-title">客户端发出</div>
+    <div class="stage-desc">用户通过 MaaS SDK/API 发送请求。携带 MaaS 平台 API Key。</div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">HTTP Request</div>
+    <div class="code-block">POST <span class="str">https://maas-gateway.zj.chinamobile.com/v1/chat/completions</span>
+<span class="key">Authorization</span>: Bearer <span class="str">maas-sk-abc123...</span>
+<span class="key">Content-Type</span>: application/json
+
+{
+  <span class="key">"model"</span>: <span class="str">"deepseek-v4-pro"</span>,
+  <span class="key">"messages"</span>: [
+    {<span class="key">"role"</span>: <span class="str">"system"</span>, <span class="key">"content"</span>: <span class="str">"你是一个智能助手"</span>},
+    {<span class="key">"role"</span>: <span class="str">"user"</span>, <span class="key">"content"</span>: <span class="str">"什么是MaaS平台？"</span>}
+  ],
+  <span class="key">"stream"</span>: <span class="bool">true</span>,
+  <span class="key">"temperature"</span>: <span class="num">0.7</span>,
+  <span class="key">"max_tokens"</span>: <span class="num">4096</span>
+}</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 1: TLS + HTTP解析 ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-gateway">阶段 1</span>
+    <div class="stage-title">TLS 终止 + HTTP/2 解析</div>
+    <div class="stage-desc">Envoy 解密 HTTPS，解析 HTTP/2 帧，构建请求上下文。请求体原封不动。</div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Request Body — 无变化</div>
+    <div class="code-block"><span class="comment">// 完全不变。Envoy 只做传输层处理，不碰应用层 body。</span>
+{<span class="key">"model"</span>: <span class="str">"deepseek-v4-pro"</span>, <span class="key">"messages"</span>: [...], ...}</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 2: routing-forwarding ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-plugin">阶段 2</span>
+    <div class="stage-title">② 路由匹配</div>
+    <div class="stage-desc"><b>routing-forwarding</b> 插件读取 model 字段，匹配后端路由规则。<br>model="deepseek-v4-pro" → 目标: external-deepseek 路由组。</div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Request Body — 无变化</div>
+    <div class="code-block"><span class="comment">// 插件只读 model 做路由决策，不修改 body。
+// 设置 upstream cluster = deepseek_adapter</span>
+{<span class="key">"model"</span>: <span class="str">"deepseek-v4-pro"</span>, <span class="key">"messages"</span>: [...], ...}</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 3: auth ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-auth">阶段 3</span>
+    <div class="stage-title">③ 认证鉴权</div>
+    <div class="stage-desc"><b>auth</b> 插件校验 API Key 是否在白名单。<br><b>key-status</b> 检查 Key 是否被吊销。<br>通过则放行，拒绝则返回 401/403。</div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Request Body — 无变化</div>
+    <div class="code-block"><span class="comment">// 鉴权只读 Header，不修改 body。
+// info-register 注入元数据 Header：</span>
+<span class="added">X-Service-ID: svc-042</span>
+<span class="added">X-Service-Name: maas-agent-platform</span>
+
+<span class="comment">// Body 不变</span>
+{<span class="key">"model"</span>: <span class="str">"deepseek-v4-pro"</span>, <span class="key">"messages"</span>: [...], ...}</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 4: 限流 ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-plugin">阶段 4</span>
+    <div class="stage-title">④ 限流控制 (×4)</div>
+    <div class="stage-desc">
+      <b>rate-limit</b> → Redis INCRBY QPS<br>
+      <b>token-rate-limit</b> → 预占 Token 配额<br>
+      <b>api-key-rate-limit</b> → 该 Key 的请求次数<br>
+      <b>api-key-token-rate-limit</b> → Key+Token 联合限流<br>
+      任一超限返回 429。
+    </div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Request Body — 无变化</div>
+    <div class="code-block"><span class="comment">// 限流只查 Redis 计数器，不修改 body</span>
+{<span class="key">"model"</span>: <span class="str">"deepseek-v4-pro"</span>, <span class="key">"messages"</span>: [...], ...}</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 5: Adapter 请求出站 ===== ★ 关键转折 -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-adapter">阶段 5 ★</span>
+    <div class="stage-title">⑤ Adapter 请求转换</div>
+    <div class="stage-desc">
+      <b>MaaS Adapter</b> 做三件事：<br>
+      ① 替换 API Key（MaaS → DeepSeek）<br>
+      ② 注入 thinking 参数<br>
+      ③ 改 base URL → api.deepseek.com<br>
+      <br>
+      <span style="color:#64748b;font-size:0.65rem;">★ DeepSeek 99% OpenAI 兼容，Body 仅加 1 个字段。<br>若接百度 ERNIE 则需改字段名+参数范围，更多次变化。</span>
+    </div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Request Body — 发生变化 ★</div>
+    <div class="code-block">POST <span class="str">https://api.deepseek.com/chat/completions</span>  <span class="comment">← URL 变了</span>
+<span class="key">Authorization</span>: Bearer <span class="str">sk-deepseek-xyz789...</span>  <span class="comment">← Key 替换</span>
+
+{
+  <span class="key">"model"</span>: <span class="str">"deepseek-v4-pro"</span>,
+  <span class="key">"messages"</span>: [
+    {<span class="key">"role"</span>: <span class="str">"system"</span>, <span class="key">"content"</span>: <span class="str">"你是一个智能助手"</span>},
+    {<span class="key">"role"</span>: <span class="str">"user"</span>, <span class="key">"content"</span>: <span class="str">"什么是MaaS平台？"</span>}
+  ],
+  <span class="key">"stream"</span>: <span class="bool">true</span>,
+  <span class="key">"temperature"</span>: <span class="num">0.7</span>,
+  <span class="key">"max_tokens"</span>: <span class="num">4096</span>,
+  <span class="added">"thinking"</span>: {<span class="added">"type"</span>: <span class="str">"enabled"</span>}                <span class="comment">← Adapter 注入</span>
+}</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 6: DeepSeek 返回 ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-vendor">阶段 6</span>
+    <div class="stage-title">⑥ DeepSeek 推理 &amp; 返回</div>
+    <div class="stage-desc">
+      DeepSeek V4 Pro 执行推理，生成思维链 + 最终回答。<br>
+      流式 SSE 返回，每 chunk 含 reasoning_content 和 content。
+    </div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Response SSE Stream — DeepSeek 原始格式</div>
+    <div class="code-block"><span class="comment">// Chunk 1: 思维链开始</span>
+data: {<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{<span class="added">"reasoning_content"</span>:<span class="str">"用户询问MaaS平台的定义..."</span>,<span class="key">"content"</span>:<span class="str">""</span>},<span class="key">"index"</span>:<span class="num">0</span>}],...}<span class="comment">
+// Chunk 2-N: 更多思维链</span>
+data: {<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{<span class="added">"reasoning_content"</span>:<span class="str">"需要解释三层含义..."</span>,<span class="key">"content"</span>:<span class="str">""</span>},<span class="key">"index"</span>:<span class="num">0</span>}],...}<span class="comment">
+// Chunk N+1: 正式回答开始</span>
+data: {<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{<span class="key">"content"</span>:<span class="str">"MaaS（Model as a Service）"</span>},<span class="key">"index"</span>:<span class="num">0</span>}],...}<span class="comment">
+// 后续 chunk: 回答续</span>
+data: {<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{<span class="key">"content"</span>:<span class="str">"是指将AI模型..."</span>},<span class="key">"index"</span>:<span class="num">0</span>}],...}<span class="comment">
+// 末块: finish + usage</span>
+data: {<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{},<span class="key">"finish_reason"</span>:<span class="str">"stop"</span>}],<span class="key">"usage"</span>:{<span class="key">"prompt_tokens"</span>:<span class="num">42</span>,<span class="key">"completion_tokens"</span>:<span class="num">156</span>,<span class="key">"total_tokens"</span>:<span class="num">198</span>}}
+data: [DONE]</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 7: Adapter 响应入站 ===== ★ -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-adapter">阶段 7 ★</span>
+    <div class="stage-title">⑦ Adapter 响应转换</div>
+    <div class="stage-desc">
+      <b>MaaS Adapter</b> 做两件事：<br>
+      ① 提取 usage → 写入计费事件 (Kafka)<br>
+      ② 流式 chunk 重整：reasoning_content 按配置剥离或保留<br>
+      <br>
+      <span style="color:#94a3b8;font-size:0.65rem;">★ DeepSeek 响应接近标准 OpenAI，重整量小。<br>若接千问：末块 choices=[] 需重整为标准格式。<br>若接百度 ERNIE：result→choices 全量映射。</span>
+    </div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Response SSE Stream — 经 Adapter 重整（保留 reasoning，提取 usage）</div>
+    <div class="code-block"><span class="comment">// 计费事件异步发 Kafka:</span>
+<span class="comment">// {request_id, tenant, model, input_tokens:42, output_tokens:156, ...}</span>
+
+<span class="comment">// Adapter 逐 chunk 处理：</span>
+<span class="comment">// ① 提取 usage（末块）→ 计费</span>
+<span class="comment">// ② reasoning_content 按配置决定保留/剥离</span>
+<span class="comment">// ③ 流式透出到客户端</span>
+
+data: {<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{<span class="added">"reasoning_content"</span>:<span class="str">"用户询问MaaS平台的定义..."</span>,<span class="key">"content"</span>:<span class="str">""</span>},...}],...}
+data: {<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{<span class="key">"content"</span>:<span class="str">"MaaS（Model as a Service）"</span>},...}],...}
+<span class="comment">// ...</span>
+data: {<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{},<span class="key">"finish_reason"</span>:<span class="str">"stop"</span>}],<span class="key">"usage"</span>:{...}}
+data: [DONE]
+
+<span class="comment">// ★ 非 DeepSeek 厂商的重整差异：</span>
+<span class="comment">// 千问末块: choices:[], usage:{} → 重整为 choices[{finish:"stop"}], usage:{}</span>
+<span class="comment">// ERNIE: result → choices[0].delta.content 全量映射</span></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 8: ai-statistics ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-response">阶段 8</span>
+    <div class="stage-title">⑧ 响应采集</div>
+    <div class="stage-desc">
+      <b>ai-statistics</b> 插件记录：<br>
+      · TTFT（首 Token 延迟）<br>
+      · Token 用量（prompt/completion/total）<br>
+      · HTTP 状态码<br>
+      · 端到端延迟
+    </div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Response — 无变化（插件只读不写）</div>
+    <div class="code-block"><span class="comment">// ai-statistics 只采集指标，不修改响应体。
+// 数据走 ALS gRPC → Kafka → ES → Grafana</span>
+
+<span class="comment">// 采集的指标示例：</span>
+<span class="comment">// TTFT: 320ms, Total Latency: 2.1s</span>
+<span class="comment">// prompt_tokens: 42, completion_tokens: 156</span>
+<span class="comment">// status: 200</span></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 9: 客户端接收 ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-client">阶段 9</span>
+    <div class="stage-title">⑨ 客户端接收</div>
+    <div class="stage-desc">
+      用户收到完整的 SSE 流。<br>
+      包含 reasoning_content（思考过程）+ content（最终回答）。<br>
+      最终回复："MaaS 是指将 AI 模型作为服务提供..."
+    </div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Client 收到的 SSE Stream</div>
+    <div class="code-block"><span class="comment">// 客户端 SDK 解析 SSE 流：</span>
+
+<span class="comment">// 思考过程（可选展示）：</span>
+<span class="str">"用户询问MaaS平台的定义，需要解释三层含义..."</span>
+
+<span class="comment">// 最终回答：</span>
+<span class="str">"MaaS（Model as a Service）是指将AI模型作为服务提供，
+用户无需关心底层GPU、推理框架、模型部署，
+通过API即可调用大模型能力。核心价值在于
+降低AI使用门槛，按量付费，弹性伸缩。"</span></div>
+  </div>
+</div>
+
+<!-- ===== 总结卡片 ===== -->
+<div class="card-row">
+  <div class="card">
+    <h3>🔵 请求体变化</h3>
+    <ul>
+      <li>· 阶段 0-4: 完全不变（7 个插件只读不改 body）</li>
+      <li>· 阶段 5: Adapter 注入 thinking 参数</li>
+      <li>· Header 变化: MaaS Key → DeepSeek Key</li>
+      <li>· ★ 变化次数取决于厂商：DeepSeek 1 次，百度 ERNIE 2-4 次</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🟠 插件只读不改 Body</h3>
+    <ul>
+      <li>· routing-forwarding: 读 model 做路由</li>
+      <li>· auth/key-status: 读 Header 做鉴权</li>
+      <li>· 4 个限流插件: 读 Redis 做计数</li>
+      <li>· ai-statistics: 读响应做采集</li>
+      <li>· <b>所有插件操作 Header/Redis，不碰 Body</b></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🟣 响应体重整</h3>
+    <ul>
+      <li>· DeepSeek: reasoning_content 可选剥离</li>
+      <li>· 千问: 末块 choices=[] 需重整</li>
+      <li>· 百度 ERNIE: result→choices 全量映射</li>
+      <li>· 各厂商兼容度不同，重整量从 0 到全量</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🟢 计费链路</h3>
+    <ul>
+      <li>· 事前: token-rate-limit 预占配额</li>
+      <li>· 事中: Adapter 实时提取 usage</li>
+      <li>· 事后: ALS 日志 → Kafka → ES 对账</li>
+      <li>· 双路: 网关计数 + DeepSeek 账单对账</li>
+    </ul>
+  </div>
+</div>
+
+<p class="footer">
+  MaaS Platform · 10 阶段完整追踪 · 请求体在 Adapter 层变化 · 响应体重整视厂商兼容度而定
+</p>
+
+</div>
+</body>
+</html>

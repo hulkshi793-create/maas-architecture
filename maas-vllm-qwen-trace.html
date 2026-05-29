@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MaaS → vLLM 自建资源池 (Qwen3-32B) 请求/响应逐阶段追踪</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #020617;
+      min-height: 100vh;
+      padding: 2rem;
+      color: #e2e8f0;
+    }
+    .container { max-width: 1300px; margin: 0 auto; }
+    .header { margin-bottom: 2rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    h1 { font-size: 1.3rem; font-weight: 700; }
+    .subtitle { color: #94a3b8; font-size: 0.8rem; margin-left: 1.75rem; }
+
+    /* Flow stage */
+    .stage { display: flex; gap: 1rem; margin-bottom: 0.75rem; align-items: flex-start; }
+    .stage-left {
+      min-width: 270px; display: flex; flex-direction: column; gap: 0.25rem;
+    }
+    .stage-num {
+      font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+      display: inline-block; width: fit-content;
+    }
+    .num-client { background: rgba(148,163,184,0.2); color: #94a3b8; }
+    .num-gateway { background: rgba(52,211,153,0.2); color: #34d399; }
+    .num-plugin { background: rgba(251,191,36,0.2); color: #fbbf24; }
+    .num-auth { background: rgba(251,113,133,0.2); color: #fb7185; }
+    .num-vllm { background: rgba(52,211,153,0.3); color: #34d399; }
+    .num-response { background: rgba(168,85,247,0.2); color: #a78bfa; }
+    .num-circuit { background: rgba(251,113,133,0.25); color: #fb7185; }
+
+    .stage-title { font-size: 0.85rem; font-weight: 600; }
+    .stage-desc { font-size: 0.7rem; color: #94a3b8; line-height: 1.5; }
+    .stage-desc b { color: #e2e8f0; }
+
+    .stage-right {
+      flex: 1; display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .code-block {
+      background: #0f172a; border: 1px solid #1e293b; border-radius: 8px;
+      padding: 0.75rem 1rem; font-size: 0.68rem; line-height: 1.55;
+      overflow-x: auto; white-space: pre; color: #e2e8f0;
+      position: relative;
+    }
+    .code-block .key { color: #67e8f9; }
+    .code-block .str { color: #a5d6a7; }
+    .code-block .num { color: #ffcc80; }
+    .code-block .bool { color: #ef9a9a; }
+    .code-block .comment { color: #64748b; }
+    .code-block .added { color: #34d399; }
+    .code-block .warn { color: #fbbf24; }
+    .code-label {
+      font-size: 0.6rem; color: #64748b; margin-bottom: 0.25rem;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+
+    .divider {
+      border: none; border-top: 1px dashed #1e293b; margin: 0.75rem 0 0.75rem 270px;
+    }
+
+    /* Highlight box for key difference */
+    .highlight-box {
+      background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.3);
+      border-radius: 8px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem;
+      font-size: 0.68rem; color: #34d399;
+    }
+    .highlight-box-orange {
+      background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.3);
+      border-radius: 8px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem;
+      font-size: 0.68rem; color: #fbbf24;
+    }
+
+    .card-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 2rem; }
+    .card {
+      background: rgba(15, 23, 42, 0.5); border-radius: 0.75rem;
+      border: 1px solid #1e293b; padding: 1rem;
+    }
+    .card h3 { font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; color: #e2e8f0; }
+    .card li { font-size: 0.65rem; color: #94a3b8; line-height: 1.5; }
+    .card ul { list-style: none; }
+    .footer { text-align: center; margin-top: 2rem; color: #475569; font-size: 0.7rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <div class="header-row">
+    <div class="pulse-dot"></div>
+    <h1>MaaS → vLLM 自建资源池 (Qwen3-32B) 请求/响应逐阶段追踪</h1>
+  </div>
+  <p class="subtitle">用户问"什么是MaaS平台？" → 路由到 vLLM 集群 Qwen3-32B → 8 个阶段 · 0 次 Body 变化</p>
+</div>
+
+<!-- ===== STAGE 0: 客户端原始请求 ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-client">阶段 0</span>
+    <div class="stage-title">客户端发出</div>
+    <div class="stage-desc">用户通过 MaaS SDK 发送请求。携带 MaaS 平台 API Key。</div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">HTTP Request</div>
+    <div class="code-block">POST <span class="str">https://maas-gateway.zj.chinamobile.com/v1/chat/completions</span>
+<span class="key">Authorization</span>: Bearer <span class="str">maas-sk-abc123...</span>
+<span class="key">Content-Type</span>: application/json
+
+{
+  <span class="key">"model"</span>: <span class="str">"qwen3-32b"</span>,
+  <span class="key">"messages"</span>: [
+    {<span class="key">"role"</span>: <span class="str">"system"</span>, <span class="key">"content"</span>: <span class="str">"你是一个智能助手"</span>},
+    {<span class="key">"role"</span>: <span class="str">"user"</span>, <span class="key">"content"</span>: <span class="str">"什么是MaaS平台？"</span>}
+  ],
+  <span class="key">"stream"</span>: <span class="bool">true</span>,
+  <span class="key">"temperature"</span>: <span class="num">0.7</span>,
+  <span class="key">"max_tokens"</span>: <span class="num">4096</span>
+}</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 1: TLS + HTTP解析 ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-gateway">阶段 1</span>
+    <div class="stage-title">TLS 终止 + HTTP/2 解析</div>
+    <div class="stage-desc">Envoy 解密 HTTPS，解析 HTTP/2 帧，构建请求上下文。</div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Request Body — 无变化</div>
+    <div class="code-block"><span class="comment">// 完全不变。Envoy 传输层处理，不碰应用层 body。</span>
+{<span class="key">"model"</span>: <span class="str">"qwen3-32b"</span>, <span class="key">"messages"</span>: [...], ...}</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 2: 路由 + 负载均衡 ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-plugin">阶段 2</span>
+    <div class="stage-title">② 路由匹配 + 负载均衡</div>
+    <div class="stage-desc">
+      <b>routing-forwarding</b>: 读 model → 匹配 vLLM 集群路由<br>
+      <b>routing-group</b>: 加权随机选择 vLLM 实例<br>
+      <span style="color:#64748b;font-size:0.65rem;">400+ 服务 × 8 GPU，按权重分流</span>
+    </div>
+  </div>
+  <div class="stage-right">
+    <div class="highlight-box">▶ 与 DeepSeek 路径差异：不需要外网 Adapter，直接路由到 K8s 内部 Service</div>
+    <div class="code-label">路由决策 (纯内存，无 I/O)</div>
+    <div class="code-block"><span class="comment">// 读 model 字段 → 查路由表 → 命中 vLLM 集群</span>
+<span class="key">"model"</span>: <span class="str">"qwen3-32b"</span>  →  upstream: <span class="str">vllm-qwen3-32b.maas-gateway.svc:8000</span>
+
+<span class="comment">// routing-group 按权重分流到具体 Pod：</span>
+<span class="comment">//   vllm-qwen3-32b-0  (weight: 25)  ← GPU node A</span>
+<span class="comment">//   vllm-qwen3-32b-1  (weight: 25)  ← GPU node B</span>
+<span class="comment">//   vllm-qwen3-32b-2  (weight: 25)  ← GPU node C</span>
+<span class="comment">//   vllm-qwen3-32b-3  (weight: 25)  ← GPU node D</span>
+<span class="warn">→ 本次随机命中: vllm-qwen3-32b-2</span>
+
+<span class="comment">// Body 不变</span>
+{<span class="key">"model"</span>: <span class="str">"qwen3-32b"</span>, <span class="key">"messages"</span>: [...], ...}</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 3: auth ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-auth">阶段 3</span>
+    <div class="stage-title">③ 认证鉴权</div>
+    <div class="stage-desc">
+      <b>auth</b> 插件校验 API Key 白名单<br>
+      <b>key-status</b> 检查 Key 是否被吊销<br>
+      <b>info-register</b> 注入 Service 元数据
+    </div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Request Body — 无变化</div>
+    <div class="code-block"><span class="comment">// 鉴权只读 Header，不修改 body。
+// info-register 注入元数据 Header：</span>
+<span class="added">X-Service-ID: svc-042</span>
+<span class="added">X-Service-Name: maas-agent-platform</span>
+
+<span class="comment">// Body 不变</span>
+{<span class="key">"model"</span>: <span class="str">"qwen3-32b"</span>, <span class="key">"messages"</span>: [...], ...}</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 4: 限流 + 熔断 + 降级 ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-circuit">阶段 4</span>
+    <div class="stage-title">④ 限流 + 熔断 + 降级</div>
+    <div class="stage-desc">
+      <b>限流 ×4</b>: QPS / Token / Key  / Key+Token<br>
+      ↓ Redis 原子计数器<br>
+      <b>circuit-breaker</b>: 检查 vLLM 实例错误率<br>
+      <b>service-fallback</b>: 熔断时降级到备用实例<br>
+      <br>
+      <span style="color:#94a3b8;font-size:0.65rem;">★ 与外部路径关键差异：内建资源需要熔断保护</span>
+    </div>
+  </div>
+  <div class="stage-right">
+    <div class="highlight-box-orange">▶ 自建池独有：熔断/降级保护 GPU 资源，外部厂商路径不需要（对方负责 SLA）</div>
+    <div class="code-label">熔断检查逻辑</div>
+    <div class="code-block"><span class="comment">// 限流检查（同外部路径）：</span>
+<span class="comment">// rate-limit: Redis INCRBY → QPS 未超限 ✓</span>
+<span class="comment">// token-rate-limit: 预占 Token 配额 ✓</span>
+<span class="comment">// api-key-rate-limit: Key 维度未超限 ✓</span>
+
+<span class="comment">// ★ 熔断检查（内部路径独有）：</span>
+<span class="comment">// circuit-breaker 检查 vllm-qwen3-32b-2 的错误率：
+//   最近 60s 错误率: 1.2% → 低于阈值 5% → 正常 ✓</span>
+<span class="comment">//   若错误率 > 5%: 熔断该实例，service-fallback 切到备用实例</span>
+
+<span class="comment">// Body 不变</span>
+{<span class="key">"model"</span>: <span class="str">"qwen3-32b"</span>, <span class="key">"messages"</span>: [...], ...}</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 5: 直接转发到 vLLM ★ 关键转折 ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-vllm">阶段 5 ★</span>
+    <div class="stage-title">⑤ 直接转发到 vLLM</div>
+    <div class="stage-desc">
+      <b>无需 Adapter！</b> vLLM 原生 OpenAI 兼容。<br>
+      <br>
+      与 DeepSeek 路径的本质区别：<br>
+      · 不改 Body（无需注入 thinking 参数）<br>
+      · 不换 Key（内网直通）<br>
+      · 不转 URL（K8s Service 直连）<br>
+      · 延迟更低（内网 < 2ms vs 公网 50ms+）
+    </div>
+  </div>
+  <div class="stage-right">
+    <div class="highlight-box">▶ 与 DeepSeek 路径最大差异：没有 Adapter 层！请求体原封不动进入 vLLM。</div>
+    <div class="code-label">Request Body — 完全不变 ★</div>
+    <div class="code-block">POST <span class="str">http://vllm-qwen3-32b-2.maas-gateway.svc:8000/v1/chat/completions</span>
+<span class="key">Authorization</span>: Bearer <span class="str">maas-sk-abc123...</span>  <span class="comment">← Key 不变，内网直通</span>
+
+{
+  <span class="key">"model"</span>: <span class="str">"qwen3-32b"</span>,
+  <span class="key">"messages"</span>: [
+    {<span class="key">"role"</span>: <span class="str">"system"</span>, <span class="key">"content"</span>: <span class="str">"你是一个智能助手"</span>},
+    {<span class="key">"role"</span>: <span class="str">"user"</span>, <span class="key">"content"</span>: <span class="str">"什么是MaaS平台？"</span>}
+  ],
+  <span class="key">"stream"</span>: <span class="bool">true</span>,
+  <span class="key">"temperature"</span>: <span class="num">0.7</span>,
+  <span class="key">"max_tokens"</span>: <span class="num">4096</span>
+}
+<span class="comment">// ↑ 与客户端原始请求完全一致，0 处修改</span></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 6: vLLM 推理返回 ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-vllm">阶段 6</span>
+    <div class="stage-title">⑥ vLLM 推理 &amp; 返回</div>
+    <div class="stage-desc">
+      vLLM 加载 Qwen3-32B 模型，PagedAttention 推理。<br>
+      流式返回标准 OpenAI SSE 格式。<br>
+      <br>
+      <span style="color:#94a3b8;font-size:0.65rem;">★ 标准 chat 模型：无 reasoning_content，纯 content</span>
+    </div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Response SSE Stream — 标准 OpenAI 格式，无思考链</div>
+    <div class="code-block"><span class="comment">// Chunk 1: 首个 token (TTFT 起点)</span>
+data: {<span class="key">"id"</span>:<span class="str">"cmpl-xxx"</span>,<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{<span class="key">"role"</span>:<span class="str">"assistant"</span>,<span class="key">"content"</span>:<span class="str">""</span>},<span class="key">"index"</span>:<span class="num">0</span>}],...}
+
+<span class="comment">// Chunk 2: 首个内容 token</span>
+data: {<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{<span class="key">"content"</span>:<span class="str">"MaaS"</span>},<span class="key">"index"</span>:<span class="num">0</span>}],...}
+
+<span class="comment">// Chunk 3-8: 续写</span>
+data: {<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{<span class="key">"content"</span>:<span class="str">"（Model as a Service）"</span>},<span class="key">"index"</span>:<span class="num">0</span>}],...}
+data: {<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{<span class="key">"content"</span>:<span class="str">"是指将AI模型"</span>},<span class="key">"index"</span>:<span class="num">0</span>}],...}
+<span class="comment">// ...</span>
+data: {<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{<span class="key">"content"</span>:<span class="str">"弹性伸缩。"</span>},<span class="key">"index"</span>:<span class="num">0</span>}],...}
+
+<span class="comment">// 末块: finish + usage</span>
+data: {<span class="key">"choices"</span>:[{<span class="key">"delta"</span>:{},<span class="key">"finish_reason"</span>:<span class="str">"stop"</span>}],<span class="key">"usage"</span>:{<span class="key">"prompt_tokens"</span>:<span class="num">38</span>,<span class="key">"completion_tokens"</span>:<span class="num">142</span>,<span class="key">"total_tokens"</span>:<span class="num">180</span>}}
+data: [DONE]</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 7: ai-statistics ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-response">阶段 7</span>
+    <div class="stage-title">⑦ 响应采集 + 日志</div>
+    <div class="stage-desc">
+      <b>ai-statistics</b> 插件采集指标<br>
+      <b>header-response-transformer</b>: 写入响应头<br>
+      <b>ALS</b>: gRPC → Kafka → ES
+    </div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Response — 无变化（插件只读不写）</div>
+    <div class="code-block"><span class="comment">// ai-statistics 采集指标：</span>
+<span class="comment">// TTFT: 180ms (比外网 DeepSeek 快 ~45%)</span>
+<span class="comment">// Total Latency: 1.5s (内网 < 2ms + 纯推理时间)</span>
+<span class="comment">// prompt_tokens: 38, completion_tokens: 142</span>
+<span class="comment">// upstream: vllm-qwen3-32b-2, status: 200</span>
+
+<span class="comment">// ALS 日志异步发送：</span>
+<span class="comment">// Envoy ALS (gRPC) → ALS Service (Go) → Kafka → ES → Grafana</span></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STAGE 8: 客户端接收 ===== -->
+<div class="stage">
+  <div class="stage-left">
+    <span class="stage-num num-client">阶段 8</span>
+    <div class="stage-title">⑧ 客户端接收</div>
+    <div class="stage-desc">
+      用户收到标准 OpenAI SSE 流。<br>
+      完整的文本回答，无思考链。<br>
+      最终回复："MaaS 是指将 AI 模型作为服务提供..."
+    </div>
+  </div>
+  <div class="stage-right">
+    <div class="code-label">Client 收到的 SSE Stream</div>
+    <div class="code-block"><span class="comment">// 客户端 SDK 解析 SSE 流，拼接 content：</span>
+
+<span class="str">"MaaS（Model as a Service）是指将AI模型作为服务提供，
+用户无需关心底层GPU、推理框架、模型部署，
+通过API即可调用大模型能力。核心价值在于
+降低AI使用门槛，按量付费，弹性伸缩。"</span>
+
+<span class="comment">// 与 DeepSeek 路径对比：无 reasoning_content，响应更短</span></div>
+  </div>
+</div>
+
+<!-- ===== 对比卡片 ===== -->
+<div class="card-row">
+  <div class="card">
+    <h3>🔵 请求体变化</h3>
+    <ul>
+      <li>· <b>全程 0 次变化</b></li>
+      <li>· 阶段 0-8: 完全不变</li>
+      <li>· vLLM 原生 OpenAI 兼容，无需 Adapter</li>
+      <li>· Key 不变，内网直通</li>
+      <li>· vs DeepSeek: 少 1 次 Adapter 注入</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🟠 内部路径独有保护</h3>
+    <ul>
+      <li>· <b>circuit-breaker</b>: 监控 vLLM 错误率</li>
+      <li>· <b>service-fallback</b>: 熔断切备用实例</li>
+      <li>· <b>routing-group</b>: 加权负载均衡</li>
+      <li>· GPU 资源自建，需要主动保护</li>
+      <li>· 外部厂商路径不需要（厂商管 SLA）</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🟣 响应体差异</h3>
+    <ul>
+      <li>· 标准 OpenAI 格式（无 reasoning_content）</li>
+      <li>· Qwen3-32B 是标准 Chat 模型</li>
+      <li>· vs DeepSeek V4 Pro: 少了思考链</li>
+      <li>· usage 格式完全一致</li>
+      <li>· 响应体总长度更短</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🟢 延迟对比</h3>
+    <ul>
+      <li>· 网络: 内网 < 2ms vs 公网 50ms+</li>
+      <li>· 无 Adapter 转发开销</li>
+      <li>· TTFT 预期快 20-40%</li>
+      <li>· 4 个限流插件延迟相同 (Redis)</li>
+      <li>· 熔断检查全内存，无额外延迟</li>
+    </ul>
+  </div>
+</div>
+
+<p class="footer">
+  MaaS Platform · 自建 vLLM 资源池路径 · 8 阶段 0 次 Body 修改 · vLLM 原生 OpenAI 兼容直通
+</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MaaS平台网关架构全景</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #020617;
+      min-height: 100vh;
+      color: #e2e8f0;
+    }
+
+    /* === TOP NAV === */
+    .topbar {
+      background: rgba(15, 23, 42, 0.8);
+      border-bottom: 1px solid #1e293b;
+      padding: 0.75rem 2rem;
+      display: flex; align-items: center; gap: 1rem;
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(12px);
+    }
+    .topbar .logo { font-size: 1rem; font-weight: 700; color: #34d399; }
+    .topbar .sep { color: #334155; }
+    .topbar .tag { font-size: 0.7rem; color: #64748b; }
+
+    /* === HERO === */
+    .hero {
+      padding: 3rem 2rem 2rem;
+      text-align: center;
+    }
+    .hero h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .hero h1 span { color: #34d399; }
+    .hero .subtitle { color: #94a3b8; font-size: 0.8rem; max-width: 600px; margin: 0 auto; line-height: 1.6; }
+
+    /* === STATS BAR === */
+    .stats {
+      display: flex; justify-content: center; gap: 3rem;
+      padding: 1.5rem 2rem;
+      border-top: 1px solid #1e293b;
+      border-bottom: 1px solid #1e293b;
+    }
+    .stat { text-align: center; }
+    .stat .num { font-size: 1.5rem; font-weight: 700; color: #34d399; }
+    .stat .label { font-size: 0.65rem; color: #64748b; margin-top: 0.25rem; }
+
+    /* === MAIN GRID === */
+    .main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
+
+    .section-title {
+      font-size: 0.75rem; font-weight: 600; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin: 2rem 0 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #1e293b;
+    }
+    .section-title:first-of-type { margin-top: 0; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1rem; }
+
+    /* === CARD === */
+    .card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 1.5rem;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      text-decoration: none;
+      display: block;
+      color: inherit;
+    }
+    .card:hover { border-color: #34d399; background: rgba(15, 23, 42, 0.9); }
+    .card-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; margin-bottom: 0.75rem;
+    }
+    .icon-green { background: rgba(52,211,153,0.15); color: #34d399; }
+    .icon-orange { background: rgba(251,146,60,0.15); color: #fb923c; }
+    .icon-blue { background: rgba(34,211,238,0.15); color: #22d3ee; }
+    .icon-purple { background: rgba(168,85,247,0.15); color: #a78bfa; }
+    .icon-rose { background: rgba(251,113,133,0.15); color: #fb7185; }
+    .icon-amber { background: rgba(251,191,36,0.15); color: #fbbf24; }
+
+    .card h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .card p { font-size: 0.7rem; color: #94a3b8; line-height: 1.5; }
+    .card .tags { display: flex; gap: 0.4rem; margin-top: 0.75rem; flex-wrap: wrap; }
+    .card .tags span {
+      font-size: 0.6rem; padding: 2px 8px; border-radius: 4px;
+      background: rgba(52,211,153,0.1); color: #34d399;
+    }
+    .card .tags .t-orange { background: rgba(251,146,60,0.1); color: #fb923c; }
+    .card .tags .t-blue { background: rgba(34,211,238,0.1); color: #22d3ee; }
+    .card .tags .t-purple { background: rgba(168,85,247,0.1); color: #a78bfa; }
+    .card .tags .t-rose { background: rgba(251,113,133,0.1); color: #fb7185; }
+    .card .tags .t-amber { background: rgba(251,191,36,0.1); color: #fbbf24; }
+
+    .card .path-indicator {
+      display: flex; align-items: center; gap: 0.3rem;
+      font-size: 0.62rem; color: #64748b; margin-top: 0.5rem;
+    }
+    .card .path-indicator .arrow { color: #34d399; }
+
+    /* === BADGE (重点标识) === */
+    .card-highlight { position: relative; border-color: #334155; }
+    .card-highlight:hover { border-color: #fbbf24; }
+    .card-badge {
+      position: absolute; top: -1px; right: 16px;
+      font-size: 0.55rem; font-weight: 700; color: #020617;
+      background: #fb923c; padding: 3px 10px;
+      border-radius: 0 0 6px 6px; letter-spacing: 0.05em;
+    }
+    .badge-green { background: #34d399; }
+
+    /* === PLACEHOLDER CARD === */
+    .card.placeholder {
+      cursor: default; opacity: 0.6;
+      border-style: dashed; border-color: #1e293b;
+    }
+    .card.placeholder:hover { border-color: #334155; background: rgba(15, 23, 42, 0.6); }
+
+    /* === FOOTER === */
+    .footer { text-align: center; padding: 2rem; color: #334155; font-size: 0.65rem; border-top: 1px solid #1e293b; }
+
+    /* === RESPONSIVE === */
+    @media (max-width: 768px) {
+      .stats { gap: 1.5rem; }
+      .hero h1 { font-size: 1.2rem; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <span class="logo">◆ MaaS</span>
+  <span class="sep">|</span>
+  <span class="tag">Architecture Portal</span>
+</div>
+
+<!-- Hero -->
+<div class="hero">
+  <h1>MaaS平台<span>网关架构全景</span></h1>
+  <p class="subtitle">
+    浙江移动 MaaS 平台架构文档集成入口。涵盖 Higress 网关 17 插件架构、外部厂商对接流程、
+    自建 vLLM 资源池路由、请求/响应体逐阶段变化追踪。
+  </p>
+</div>
+
+<!-- Main Content -->
+<div class="main">
+
+  <!-- Section 1: Higress 整体架构 -->
+  <div class="section-title">▎ Higress 整体架构</div>
+  <div class="grid">
+    <a class="card" href="maas-external-model-flow.html" target="_blank">
+      <div class="card-icon icon-green">◈</div>
+      <h3>Higress 网关 + 双路径总览</h3>
+      <p>全链路架构图：Higress 17 插件链 → 内部 vLLM / 外部厂商双路径 → ALS → Kafka → ES 日志管线</p>
+      <div class="tags">
+        <span>总览</span><span>7 阶段</span><span class="t-orange">内部+外部</span>
+      </div>
+      <div class="path-indicator">
+        Client <span class="arrow">→</span> Higress <span class="arrow">→</span> vLLM / Adapter <span class="arrow">→</span> 厂商
+      </div>
+    </a>
+
+    <a class="card" href="higress-architecture.html" target="_blank">
+      <div class="card-icon icon-purple">▦</div>
+      <h3>Higress 技术架构图</h3>
+      <p>控制面 (Controller + Pilot + xDS) · 数据面 (Envoy + Wasm 沙箱) · 配置热更新零中断。三层架构拆解 + 17 插件执行链 + Redis/ALS 管线。</p>
+      <div class="tags">
+        <span class="t-purple">三层架构</span><span>xDS Delta</span><span>Wasm 沙箱</span>
+      </div>
+    </a>
+
+    <a class="card" href="envoy-internal-architecture.html" target="_blank">
+      <div class="card-icon icon-green">⬡</div>
+      <h3>Envoy Proxy 内部架构</h3>
+      <p>Listener → Filter Chain (L3/L4 → L7) → Route → Cluster → Endpoint。含 Listener Manager、SDS、xDS 客户端、Wasm 沙箱嵌入关系。</p>
+      <div class="tags">
+        <span>L3/L4</span><span>L7</span><span class="t-purple">Wasm 沙箱</span>
+      </div>
+    </a>
+  </div>
+
+  <!-- Section 2: 请求体逐阶段变化追踪 -->
+  <div class="section-title">▎ 请求体逐阶段变化追踪</div>
+  <div class="grid">
+
+    <a class="card" onclick="document.getElementById('compare-table').classList.toggle('hidden'); return false;" style="cursor:pointer;">
+      <div class="card-icon icon-amber">⇔</div>
+      <h3>双路径总览对比 ▼</h3>
+      <p>点击展开 6 维度对比表：阶段数、Body 变化、Key 管理、熔断、网络延迟、响应重整。</p>
+      <div class="tags">
+        <span class="t-amber">对比</span><span>内部 vLLM</span><span>外部厂商</span>
+      </div>
+    </a>
+
+    <a class="card card-highlight" href="maas-deepseek-request-trace.html" target="_blank">
+      <div class="card-badge">外部厂商</div>
+      <div class="card-icon icon-orange">⇢</div>
+      <h3>★ 外部厂商：MaaS → DeepSeek V4 Pro</h3>
+      <p>10 阶段完整追踪。请求体在 Adapter 层变化 1 次（重整参数），响应体可能需要重整（reasoning 剥离等，视厂商兼容度而定）。</p>
+      <div class="tags">
+        <span class="t-orange">外部路径</span><span>10 阶段</span><span>1 次 Body 变更</span><span class="t-blue">含 reasoning</span>
+      </div>
+      <div class="path-indicator">
+        Client <span class="arrow">→</span> Higress <span class="arrow">→</span> <b>Adapter ★</b> <span class="arrow">→</span> api.deepseek.com
+      </div>
+    </a>
+
+    <a class="card card-highlight" href="maas-vllm-qwen-trace.html" target="_blank">
+      <div class="card-badge badge-green">自建资源</div>
+      <div class="card-icon icon-green">⇢</div>
+      <h3>★ 自建资源：MaaS → vLLM Qwen3-32B</h3>
+      <p>8 阶段完整追踪。全程 0 次 Body 修改，vLLM 原生 OpenAI 兼容直通。独有熔断/降级保护 GPU 资源。</p>
+      <div class="tags">
+        <span>内部路径</span><span>8 阶段</span><span>0 次 Body 变更</span><span class="t-rose">含熔断</span>
+      </div>
+      <div class="path-indicator">
+        Client <span class="arrow">→</span> Higress <span class="arrow">→</span> vLLM K8s SVC <span class="arrow">→</span> Qwen3-32B
+      </div>
+    </a>
+
+  </div>
+
+  <!-- Inline Compare Table -->
+  <div id="compare-table" class="hidden" style="margin-top:1rem;
+    background:rgba(15,23,42,0.8); border:1px solid #1e293b; border-radius:12px; padding:1.5rem; overflow-x:auto;">
+    <h3 style="font-size:0.85rem; margin-bottom:1rem;">内部 vs 外部路径 — 6 维度对比</h3>
+    <table style="width:100%; border-collapse:collapse; font-size:0.7rem;">
+      <thead>
+        <tr style="border-bottom:1px solid #1e293b; color:#64748b; text-align:left;">
+          <th style="padding:0.5rem;">维度</th>
+          <th style="padding:0.5rem; color:#34d399;">内部 vLLM</th>
+          <th style="padding:0.5rem; color:#fb923c;">外部厂商</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #1e293b22;">
+          <td style="padding:0.5rem;">阶段数</td>
+          <td style="padding:0.5rem;">8</td>
+          <td style="padding:0.5rem;">10 (+Adapter 进出)</td>
+        </tr>
+        <tr style="border-bottom:1px solid #1e293b22;">
+          <td style="padding:0.5rem;">请求体变化</td>
+          <td style="padding:0.5rem; color:#34d399;">0 次</td>
+          <td style="padding:0.5rem; color:#fbbf24;">1 次 (Adapter重整参数)</td>
+        </tr>
+        <tr style="border-bottom:1px solid #1e293b22;">
+          <td style="padding:0.5rem;">响应体重整</td>
+          <td style="padding:0.5rem; color:#34d399;">不需要</td>
+          <td style="padding:0.5rem; color:#fbbf24;">可能需要（视厂商兼容度）</td>
+        </tr>
+        <tr style="border-bottom:1px solid #1e293b22;">
+          <td style="padding:0.5rem;">API Key</td>
+          <td style="padding:0.5rem;">不变，内网直通</td>
+          <td style="padding:0.5rem;">MaaS Key → 厂商 Key</td>
+        </tr>
+        <tr style="border-bottom:1px solid #1e293b22;">
+          <td style="padding:0.5rem;">熔断/降级</td>
+          <td style="padding:0.5rem; color:#fb7185;">✅ 自建 GPU 需要</td>
+          <td style="padding:0.5rem;">不需要 (厂商 SLA)</td>
+        </tr>
+        <tr style="border-bottom:1px solid #1e293b22;">
+          <td style="padding:0.5rem;">计费对账</td>
+          <td style="padding:0.5rem;">单路 (网关自计)</td>
+          <td style="padding:0.5rem;">双路 (网关 + 厂商账单)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  MaaS Platform Architecture Portal · Higress 17-Wasm-Plugin · vLLM Backend · DeepSeek/Qwen/GLM Integration
+</div>
+
+<script>
+// Simple toggle for inline tables
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.hidden').forEach(el => el.style.display = 'none');
+});
+document.querySelectorAll('.card[onclick]').forEach(card => {
+  card.addEventListener('click', function(e) {
+    const targetId = this.getAttribute('onclick').match(/'([^']+)'/)[1];
+    const el = document.getElementById(targetId);
+    if (el.style.display === 'none') {
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+});
+</script>
+<style>.hidden { display: none; }</style>
+</body>
+</html>
