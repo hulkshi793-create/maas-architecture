@@ -227,34 +227,39 @@
     <div class="note">
       <h3><span class="dot dot-dev"></span>阶段一：开发者本地</h3>
       <ul>
-        <li>· TinyGo 是 Wasi 目标编译器（不是 go build），产出纯 .wasm 二进制</li>
-        <li>· OCI 镜像用 FROM scratch，只有 .wasm 一个文件，通常 200-500KB</li>
-        <li>· tag v2 就是版本控制——回滚就是 kubectl apply 旧 tag 的 CRD</li>
+        <li>① 修改插件 Go 源代码（auth/main.go）</li>
+        <li>② 用 TinyGo 编译为 .wasm 二进制（target wasip1）</li>
+        <li>③ 打包为 OCI 镜像（FROM scratch + COPY auth.wasm）并推送到镜像仓库</li>
+        <li>④ 新 tag（v2）标识版本，回滚即切回旧 tag</li>
       </ul>
     </div>
     <div class="note">
       <h3><span class="dot dot-k8s"></span>阶段二：K8s 下发</h3>
       <ul>
-        <li>· WasmPlugin 是 CRD（Custom Resource Definition），不是 K8s 原生资源</li>
-        <li>· Controller 用 Informer/Watch 机制监听变更，实时触发 reconcile</li>
-        <li>· 控制器崩溃 = 新配置下不去，但数据面存量不受影响</li>
+        <li>① kubectl apply WasmPlugin CRD（指定 url 为新 v2 镜像和插件配置）</li>
+        <li>② K8s API Server 校验格式并写入 etcd</li>
+        <li>③ higress-controller Informer/Watch 机制检测到 CRD 变更</li>
+        <li>④ Controller 将 WasmPlugin CRD 转换为 Istio 配置对象</li>
       </ul>
     </div>
     <div class="note">
       <h3><span class="dot dot-ctrl"></span>阶段三：控制面</h3>
       <ul>
-        <li>· Pilot 不推全量，只推版本号变化的资源（Delta xDS）</li>
-        <li>· 改 1 条路由只推 1 条，不会因为改了 auth 而把 routing-forwarding 也重推一遍</li>
-        <li>· Pilot 宕机 = 新配置停发，但 Envoy 继续用当前配置</li>
+        <li>① Pilot 接收转换后的 Istio 配置，对比版本号</li>
+        <li>② 检测到 auth 插件版本号从 v1 变为 v2</li>
+        <li>③ 仅生成 auth 插件的 xDS Delta 增量（不改其他 99 个插件）</li>
+        <li>④ 通过 gRPC 长连接向 Envoy 推送 Delta 变更</li>
       </ul>
     </div>
     <div class="note">
       <h3><span class="dot dot-envoy"></span>阶段四：Envoy 热加载</h3>
       <ul>
-        <li>· Envoy <b>不重启进程</b>，只创建新的 Wasm 实例并注入 Filter Chain</li>
-        <li>· 新旧实例<b>短时间内共存</b>，旧的处理完 in-flight 请求后销毁</li>
-        <li>· 只改 pluginConfig 的话，不需要拉新 .wasm，调旧实例的 proxy_on_configure() 即可</li>
-        <li>· 引用计数机制保证旧实例安全销毁——不会出现"旧请求还在跑，实例已销毁"的情况</li>
+        <li>① Envoy 通过 gRPC 长连接收到 xDS Delta，识别 auth 插件需要更新</li>
+        <li>② 异步从 OCI 镜像仓库拉取新的 auth:v2.wasm</li>
+        <li>③ 创建新的 Wasm 实例 B，调用 proxy_on_configure() 初始化</li>
+        <li>④ 将实例 B 注入 HTTP Filter Chain，新请求全部路由到 B</li>
+        <li>⑤ 旧实例 A 继续处理尚未完成的 in-flight 请求（引用计数保护）</li>
+        <li>⑥ 旧实例 A 引用计数归零后销毁，热更新完成</li>
       </ul>
     </div>
   </div>
