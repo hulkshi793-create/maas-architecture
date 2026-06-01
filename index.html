@@ -158,6 +158,15 @@
   <!-- Section 1: Higress 整体架构 -->
   <div class="section-title">▎ Higress 整体架构</div>
   <div class="grid">
+    <a class="card" href="higress-architecture.html" target="_blank">
+      <div class="card-icon icon-purple">▦</div>
+      <h3>Higress 技术架构图</h3>
+      <p>控制面 (Controller + Pilot + xDS) · 数据面 (Envoy + Wasm 沙箱) · 配置热更新零中断。三层架构拆解 + 17 插件执行链 + Redis/ALS 管线。</p>
+      <div class="tags">
+        <span class="t-purple">三层架构</span><span>xDS Delta</span><span>Wasm 沙箱</span>
+      </div>
+    </a>
+
     <a class="card" href="maas-external-model-flow.html" target="_blank">
       <div class="card-icon icon-green">◈</div>
       <h3>Higress 网关 + 双路径总览</h3>
@@ -167,15 +176,6 @@
       </div>
       <div class="path-indicator">
         Client <span class="arrow">→</span> Higress <span class="arrow">→</span> vLLM / Adapter <span class="arrow">→</span> 厂商
-      </div>
-    </a>
-
-    <a class="card" href="higress-architecture.html" target="_blank">
-      <div class="card-icon icon-purple">▦</div>
-      <h3>Higress 技术架构图</h3>
-      <p>控制面 (Controller + Pilot + xDS) · 数据面 (Envoy + Wasm 沙箱) · 配置热更新零中断。三层架构拆解 + 17 插件执行链 + Redis/ALS 管线。</p>
-      <div class="tags">
-        <span class="t-purple">三层架构</span><span>xDS Delta</span><span>Wasm 沙箱</span>
       </div>
     </a>
 
