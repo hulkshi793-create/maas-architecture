@@ -46,7 +46,7 @@
     <div class="pulse-dot"></div>
     <h1>Envoy 核心组件架构</h1>
   </div>
-  <p class="subtitle">Listener → Filter Chain → Cluster → Endpoint · 参考: jimmysong.io/envoy-handbook</p>
+  <p class="subtitle">监听器 → 过滤器链 (网络层→应用层) → 路由 → 集群 → 端点 · 参考: jimmysong.io/envoy-handbook</p>
 </div>
 
 <div class="diagram-container">
@@ -88,30 +88,29 @@
          3a. HTTP Filter (left)
          ============================================================ -->
     <rect x="120" y="265" width="220" height="100" rx="8" fill="rgba(168,85,247,0.08)" stroke="#a78bfa" stroke-width="1.5"/>
-    <text x="230" y="292" fill="#a78bfa" font-size="13" font-weight="700" text-anchor="middle">HTTP Filter</text>
+    <text x="230" y="292" fill="#a78bfa" font-size="13" font-weight="700" text-anchor="middle">HTTP 过滤器</text>
     <line x1="140" y1="306" x2="320" y2="306" stroke="#1e293b" stroke-width="0.5"/>
     <text x="230" y="324" fill="#94a3b8" font-size="9" text-anchor="middle">路由 · 认证 · 跨域 · 限流</text>
     <text x="230" y="342" fill="#94a3b8" font-size="9" text-anchor="middle">gRPC 转换 · 故障注入</text>
     <text x="230" y="358" fill="#64748b" font-size="8" text-anchor="middle">(Wasm 插件属于此类，沙箱中执行)</text>
 
     <!-- ============================================================
-         3b. Network Filter (center)
+         3b. 网络过滤器 (center)
          ============================================================ -->
     <rect x="380" y="265" width="140" height="100" rx="8" fill="rgba(251,146,60,0.08)" stroke="#fb923c" stroke-width="1.5"/>
-    <text x="450" y="292" fill="#fb923c" font-size="13" font-weight="700" text-anchor="middle">Network</text>
-    <text x="450" y="310" fill="#fb923c" font-size="11" font-weight="500" text-anchor="middle">Filter</text>
+    <text x="450" y="300" fill="#fb923c" font-size="13" font-weight="700" text-anchor="middle">网络过滤器</text>
     <line x1="400" y1="324" x2="500" y2="324" stroke="#1e293b" stroke-width="0.5"/>
-    <text x="450" y="344" fill="#94a3b8" font-size="9" text-anchor="middle">TCP Proxy</text>
+    <text x="450" y="344" fill="#94a3b8" font-size="9" text-anchor="middle">TCP 代理</text>
     <text x="450" y="358" fill="#94a3b8" font-size="9" text-anchor="middle">TLS 终止</text>
 
     <!-- ============================================================
          3c. Other Filters (right)
          ============================================================ -->
     <rect x="560" y="265" width="220" height="100" rx="8" fill="rgba(251,113,133,0.08)" stroke="#fb7185" stroke-width="1.5"/>
-    <text x="670" y="292" fill="#fb7185" font-size="13" font-weight="700" text-anchor="middle">Other Filters</text>
+    <text x="670" y="292" fill="#fb7185" font-size="13" font-weight="700" text-anchor="middle">其他过滤器</text>
     <line x1="580" y1="306" x2="760" y2="306" stroke="#1e293b" stroke-width="0.5"/>
-    <text x="670" y="324" fill="#94a3b8" font-size="9" text-anchor="middle">Dubbo Filter</text>
-    <text x="670" y="342" fill="#94a3b8" font-size="9" text-anchor="middle">Thrift Filter</text>
+    <text x="670" y="324" fill="#94a3b8" font-size="9" text-anchor="middle">Dubbo 过滤器</text>
+    <text x="670" y="342" fill="#94a3b8" font-size="9" text-anchor="middle">Thrift 过滤器</text>
     <text x="670" y="358" fill="#94a3b8" font-size="9" text-anchor="middle">Listener Filter ...</text>
 
     <!-- Arrows: all three → Cluster -->
@@ -163,13 +162,13 @@
     <line x1="348" y1="565" x2="202" y2="565" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arr)"/>
     <text x="50" y="618" fill="#94a3b8" font-size="8">图例:</text>
     <rect x="100" y="610" width="12" height="9" rx="2" fill="rgba(52,211,153,0.15)" stroke="#34d399" stroke-width="1"/>
-    <text x="118" y="618" fill="#94a3b8" font-size="8">Filter Chain</text>
+    <text x="118" y="618" fill="#94a3b8" font-size="8">过滤器链</text>
     <rect x="210" y="610" width="12" height="9" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a78bfa" stroke-width="1"/>
-    <text x="228" y="618" fill="#94a3b8" font-size="8">HTTP Filter</text>
+    <text x="228" y="618" fill="#94a3b8" font-size="8">HTTP 过滤器</text>
     <rect x="320" y="610" width="12" height="9" rx="2" fill="rgba(251,146,60,0.15)" stroke="#fb923c" stroke-width="1"/>
-    <text x="338" y="618" fill="#94a3b8" font-size="8">Network Filter</text>
+    <text x="338" y="618" fill="#94a3b8" font-size="8">网络过滤器</text>
     <rect x="455" y="610" width="12" height="9" rx="2" fill="rgba(251,191,36,0.15)" stroke="#fbbf24" stroke-width="1"/>
-    <text x="473" y="618" fill="#94a3b8" font-size="8">Cluster</text>
+    <text x="473" y="618" fill="#94a3b8" font-size="8">集群 / 端点</text>
     <text x="550" y="618" fill="#fb923c" font-size="8">橙色虚线: xDS 配置推送</text>
   </svg>
 </div>
@@ -183,7 +182,7 @@
     </div>
     <div class="module">
       <h3>Filter Chain（过滤器链）</h3>
-      <p>请求处理的核心。链式执行一系列过滤器，处理和转换请求/响应。包含三类过滤器：HTTP Filter（路由、认证、限流等 L7 处理）、Network Filter（TCP 代理、TLS 等 L3/L4 处理）、Other Filters（Dubbo、Thrift 等协议）。Wasm 插件是 HTTP Filter 的一种实现方式，在 Envoy 内置的 Wasm 沙箱中执行。</p>
+      <p>请求处理的核心。链式执行一系列过滤器，处理和转换请求/响应。包含三类过滤器：HTTP Filter（路由、认证、限流等 L7 处理）、网络过滤器（TCP 代理、TLS 等 L3/L4 处理）、Other Filters（Dubbo、Thrift 等协议）。Wasm 插件是 HTTP Filter 的一种实现方式，在 Envoy 内置的 Wasm 沙箱中执行。</p>
     </div>
     <div class="module">
       <h3>Cluster（集群）</h3>
