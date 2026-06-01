@@ -14,7 +14,7 @@
       padding: 2rem;
       color: #e2e8f0;
     }
-    .container { max-width: 1100px; margin: 0 auto; }
+    .container { max-width: 1200px; margin: 0 auto; }
     .header { margin-bottom: 1.5rem; }
     .header-row { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.4rem; }
     .pulse-dot { width: 10px; height: 10px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
@@ -25,21 +25,21 @@
       background: rgba(15, 23, 42, 0.5); border-radius: 1rem;
       border: 1px solid #1e293b; padding: 1.5rem; overflow-x: auto;
     }
-    svg { width: 100%; min-width: 1000px; display: block; }
-    .modules { margin-top: 2rem; }
-    .modules h2 { font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 1rem; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem; }
-    .module-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
-    .module {
+    svg { width: 100%; min-width: 1100px; display: block; }
+    .notes { margin-top: 2rem; }
+    .notes h2 { font-size: 0.85rem; color: #64748b; margin-bottom: 1rem; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem; }
+    .note-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .note {
       background: rgba(15, 23, 42, 0.5); border-radius: 0.75rem;
       border: 1px solid #1e293b; padding: 1rem;
     }
-    .module h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
-    .module h3 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 0.3rem; }
+    .note h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .note h3 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 0.3rem; }
     .dot-blue { background: #22d3ee; }
     .dot-green { background: #34d399; }
     .dot-amber { background: #fbbf24; }
     .dot-purple { background: #a78bfa; }
-    .module p { font-size: 0.7rem; color: #94a3b8; line-height: 1.5; }
+    .note p { font-size: 0.7rem; color: #94a3b8; line-height: 1.5; }
     .footer { text-align: center; margin-top: 2rem; color: #475569; font-size: 0.65rem; }
   </style>
 </head>
@@ -51,11 +51,11 @@
     <div class="pulse-dot"></div>
     <h1>Envoy 核心组件架构</h1>
   </div>
-  <p class="subtitle">监听器 → 过滤器链 (HTTP) → 集群 → 端点 · 参考: jimmysong.io/envoy-handbook</p>
+  <p class="subtitle">监听器 → 网络过滤器 → HTTP 过滤器链（双向） → 集群 → 端点 · 参考 jimmysong.io</p>
 </div>
 
 <div class="diagram-container">
-  <svg viewBox="0 0 1100 520">
+  <svg viewBox="0 0 1100 680">
     <defs>
       <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
         <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
@@ -72,6 +72,9 @@
       <marker id="arr-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
         <polygon points="0 0, 10 3.5, 0 7" fill="#fb923c"/>
       </marker>
+      <marker id="arr-rose" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185"/>
+      </marker>
       <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
         <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
       </pattern>
@@ -79,147 +82,192 @@
 
     <rect width="100%" height="100%" fill="url(#grid)"/>
 
-    <!-- Envoy shell -->
-    <rect x="30" y="20" width="1040" height="260" rx="12" fill="rgba(6,78,59,0.04)" stroke="#34d399" stroke-width="1.5"/>
-    <text x="52" y="48" fill="#34d399" font-size="14" font-weight="700">Envoy Proxy</text>
+    <!-- ============================================================
+         Envoy Proxy shell — 包含 Listener, Network Filter, HTTP Filter Chain, Cluster
+         ============================================================ -->
+    <rect x="30" y="20" width="1040" height="430" rx="12" fill="rgba(6,78,59,0.04)" stroke="#34d399" stroke-width="2"/>
+    <text x="52" y="50" fill="#34d399" font-size="14" font-weight="700">Envoy Proxy</text>
+    <text x="170" y="50" fill="#64748b" font-size="9">C++ 原生 · 事件驱动 · 多 Worker 线程 (每 Worker 独立连接池)</text>
 
     <!-- ============================================================
-         Downstream → Listener (y=65)
+         xDS / SDS side annotations (right)
          ============================================================ -->
-    <rect x="60" y="300" width="120" height="32" rx="5" fill="#0f172a" stroke="#94a3b8" stroke-width="1.2"/>
-    <text x="120" y="321" fill="white" font-size="10" font-weight="500" text-anchor="middle">Downstream (Client)</text>
-
-    <!-- Arrow: Client → Listener -->
-    <path d="M 120 300 L 120 210 L 120 142" fill="none" stroke="#22d3ee" stroke-width="1.8" marker-end="url(#arr-blue)"/>
-    <text x="105" y="220" fill="#22d3ee" font-size="9">HTTPS</text>
-
-    <!-- 1. Listener -->
-    <rect x="60" y="75" width="180" height="65" rx="8" fill="rgba(34,211,238,0.08)" stroke="#22d3ee" stroke-width="1.8"/>
-    <text x="150" y="102" fill="#22d3ee" font-size="13" font-weight="700" text-anchor="middle">Listener</text>
-    <text x="150" y="122" fill="white" font-size="10" font-weight="500" text-anchor="middle">监听器</text>
-    <text x="150" y="136" fill="#94a3b8" font-size="7" text-anchor="middle">IP:Port · TCP · TLS 终止</text>
-
-    <!-- Arrow: Listener → Filter Chain -->
-    <line x1="240" y1="107" x2="290" y2="107" stroke="#64748b" stroke-width="2" marker-end="url(#arr)"/>
+    <rect x="880" y="65" width="170" height="145" rx="6" fill="rgba(251,146,60,0.05)" stroke="#fb923c" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="965" y="88" fill="#fb923c" font-size="10" font-weight="600" text-anchor="middle">xDS 配置通道</text>
+    <line x1="895" y1="96" x2="1035" y2="96" stroke="#1e293b" stroke-width="0.5"/>
+    <text x="965" y="115" fill="#94a3b8" font-size="9" text-anchor="middle">LDS — 监听器配置</text>
+    <text x="965" y="133" fill="#94a3b8" font-size="9" text-anchor="middle">RDS — 路由配置</text>
+    <text x="965" y="151" fill="#94a3b8" font-size="9" text-anchor="middle">CDS — 集群配置</text>
+    <text x="965" y="169" fill="#94a3b8" font-size="9" text-anchor="middle">EDS — 端点配置</text>
+    <text x="965" y="195" fill="#a78bfa" font-size="9" font-weight="600" text-anchor="middle">SDS — TLS 证书</text>
 
     <!-- ============================================================
-         2. Filter Chain — the core, with Wasm plugins inside
+         1. LISTENER
          ============================================================ -->
-    <rect x="295" y="60" width="510" height="200" rx="10" fill="rgba(52,211,153,0.06)" stroke="#34d399" stroke-width="2"/>
-    <text x="550" y="90" fill="#34d399" font-size="14" font-weight="700" text-anchor="middle">Filter Chain · HTTP 过滤器链</text>
-    <text x="550" y="108" fill="#64748b" font-size="8" text-anchor="middle">MaaS 全部 17 个插件都在 HTTP Filter 链上串行执行</text>
-    <line x1="330" y1="118" x2="770" y2="118" stroke="#1e293b" stroke-width="0.5"/>
+    <rect x="50" y="75" width="200" height="80" rx="8" fill="rgba(34,211,238,0.08)" stroke="#22d3ee" stroke-width="1.8"/>
+    <text x="150" y="105" fill="#22d3ee" font-size="13" font-weight="700" text-anchor="middle">Listener · 监听器</text>
+    <line x1="70" y1="114" x2="230" y2="114" stroke="#1e293b" stroke-width="0.5"/>
+    <text x="150" y="132" fill="#94a3b8" font-size="9" text-anchor="middle">IP:Port 监听 · TCP/UDP</text>
+    <text x="150" y="148" fill="#94a3b8" font-size="9" text-anchor="middle">TLS 终止 (证书由 SDS 推送)</text>
 
-    <!-- Execution order label -->
-    <text x="320" y="140" fill="#94a3b8" font-size="8" font-weight="600">执行顺序（串行）:</text>
-
-    <!-- Row 1 -->
-    <rect x="320" y="150" width="105" height="24" rx="3" fill="rgba(168,85,247,0.12)" stroke="#a78bfa" stroke-width="0.6"/>
-    <text x="372" y="166" fill="white" font-size="8" text-anchor="middle">routing-forwarding</text>
-
-    <rect x="432" y="150" width="50" height="24" rx="3" fill="rgba(251,113,133,0.15)" stroke="#fb7185" stroke-width="0.6"/>
-    <text x="457" y="166" fill="white" font-size="8" text-anchor="middle">auth</text>
-
-    <rect x="489" y="150" width="95" height="24" rx="3" fill="rgba(251,113,133,0.12)" stroke="#fb7185" stroke-width="0.6"/>
-    <text x="536" y="166" fill="white" font-size="8" text-anchor="middle">rate-limit ×4</text>
-
-    <rect x="591" y="150" width="100" height="24" rx="3" fill="rgba(251,113,133,0.12)" stroke="#fb7185" stroke-width="0.6"/>
-    <text x="641" y="166" fill="white" font-size="8" text-anchor="middle">circuit-breaker</text>
-
-    <rect x="698" y="150" width="90" height="24" rx="3" fill="rgba(168,85,247,0.12)" stroke="#a78bfa" stroke-width="0.6"/>
-    <text x="743" y="166" fill="white" font-size="8" text-anchor="middle">ai-statistics</text>
-
-    <!-- Row 2 -->
-    <rect x="320" y="180" width="100" height="24" rx="3" fill="rgba(168,85,247,0.12)" stroke="#a78bfa" stroke-width="0.6"/>
-    <text x="370" y="196" fill="white" font-size="8" text-anchor="middle">service-fallback</text>
-
-    <rect x="427" y="180" width="120" height="24" rx="3" fill="rgba(168,85,247,0.08)" stroke="#a78bfa" stroke-width="0.5"/>
-    <text x="487" y="196" fill="#94a3b8" font-size="7" text-anchor="middle">header-transformer ×2</text>
-
-    <rect x="554" y="180" width="80" height="24" rx="3" fill="rgba(168,85,247,0.08)" stroke="#a78bfa" stroke-width="0.5"/>
-    <text x="594" y="196" fill="#94a3b8" font-size="7" text-anchor="middle">detailed-data</text>
-
-    <text x="660" y="196" fill="#94a3b8" font-size="9">...</text>
-
-    <!-- Wasm sandbox note -->
-    <rect x="320" y="238" width="470" height="16" rx="3" fill="rgba(168,85,247,0.04)" stroke="#a78bfa" stroke-width="0.5" stroke-dasharray="3,2"/>
-    <text x="555" y="250" fill="#a78bfa" font-size="7" text-anchor="middle">以上插件均编译为 .wasm，在 Envoy 内置 Wasm 沙箱中隔离执行 (内存隔离 · 故障隔离 · 热更新)</text>
-
-    <!-- Arrow: Filter Chain → Cluster -->
-    <line x1="550" y1="260" x2="550" y2="300" stroke="#64748b" stroke-width="2" marker-end="url(#arr)"/>
+    <!-- Arrow: Listener → Network Filter -->
+    <line x1="250" y1="115" x2="295" y2="115" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
 
     <!-- ============================================================
-         3. Cluster
+         2. NETWORK FILTER
          ============================================================ -->
-    <rect x="380" y="305" width="340" height="55" rx="8" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1.8"/>
-    <text x="550" y="330" fill="white" font-size="13" font-weight="700" text-anchor="middle">Cluster · 集群</text>
-    <text x="550" y="350" fill="#94a3b8" font-size="8" text-anchor="middle">负载均衡 · 健康检查 · 熔断 · 连接池 (每 Worker 独立，无锁)</text>
+    <rect x="300" y="75" width="200" height="80" rx="8" fill="rgba(251,146,60,0.06)" stroke="#fb923c" stroke-width="1.8"/>
+    <text x="400" y="100" fill="#fb923c" font-size="12" font-weight="700" text-anchor="middle">Network Filter</text>
+    <text x="400" y="116" fill="#fb923c" font-size="9" font-weight="500" text-anchor="middle">网络过滤器</text>
+    <line x1="320" y1="126" x2="480" y2="126" stroke="#1e293b" stroke-width="0.5"/>
+    <text x="400" y="144" fill="#94a3b8" font-size="9" text-anchor="middle">HTTP 连接管理器 (HCM)</text>
 
-    <!-- Arrow: Cluster → Endpoint -->
-    <line x1="550" y1="360" x2="550" y2="390" stroke="#64748b" stroke-width="2" marker-end="url(#arr)"/>
+    <!-- Arrow: Network Filter → HTTP Filter Chain -->
+    <line x1="500" y1="115" x2="555" y2="115" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
 
     <!-- ============================================================
-         4. Endpoint
+         3. HTTP FILTER CHAIN (bidirectional)
          ============================================================ -->
-    <rect x="430" y="395" width="240" height="45" rx="8" fill="rgba(168,85,247,0.1)" stroke="#a78bfa" stroke-width="1.8"/>
-    <text x="550" y="416" fill="white" font-size="13" font-weight="700" text-anchor="middle">Endpoint · 端点</text>
-    <text x="550" y="432" fill="#94a3b8" font-size="8" text-anchor="middle">具体实例 IP:Port · EDS 动态推送</text>
+    <rect x="560" y="65" width="490" height="130" rx="10" fill="rgba(52,211,153,0.05)" stroke="#34d399" stroke-width="1.8"/>
+    <text x="805" y="90" fill="#34d399" font-size="12" font-weight="700" text-anchor="middle">HTTP Filter Chain · 双向执行</text>
+    <text x="805" y="106" fill="#64748b" font-size="7" text-anchor="middle">请求路径: 依次串行执行 → 响应路径: 反向再执行一遍 → 所有 MaaS 插件在此链上</text>
+    <line x1="580" y1="114" x2="1030" y2="114" stroke="#1e293b" stroke-width="0.5"/>
 
-    <!-- Upstream -->
-    <rect x="430" y="465" width="240" height="30" rx="5" fill="#0f172a" stroke="#94a3b8" stroke-width="1.2"/>
-    <text x="550" y="485" fill="white" font-size="10" font-weight="500" text-anchor="middle">Upstream (vLLM / 厂商 API)</text>
+    <!-- Filter execution order — request direction -->
+    <!-- Corrected: auth before routing -->
+    <rect x="580" y="124" width="55" height="26" rx="3" fill="rgba(251,113,133,0.18)" stroke="#fb7185" stroke-width="0.6"/>
+    <text x="607" y="141" fill="white" font-size="8" text-anchor="middle">auth</text>
 
-    <line x1="550" y1="440" x2="550" y2="463" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arr)"/>
+    <rect x="642" y="124" width="110" height="26" rx="3" fill="rgba(168,85,247,0.12)" stroke="#a78bfa" stroke-width="0.6"/>
+    <text x="697" y="141" fill="white" font-size="8" text-anchor="middle">routing-forwarding</text>
+
+    <rect x="759" y="124" width="90" height="26" rx="3" fill="rgba(251,113,133,0.12)" stroke="#fb7185" stroke-width="0.6"/>
+    <text x="804" y="141" fill="white" font-size="8" text-anchor="middle">rate-limit ×4</text>
+
+    <rect x="856" y="124" width="85" height="26" rx="3" fill="rgba(168,85,247,0.12)" stroke="#a78bfa" stroke-width="0.6"/>
+    <text x="898" y="141" fill="white" font-size="8" text-anchor="middle">ai-statistics</text>
+
+    <text x="950" y="141" fill="#94a3b8" font-size="9">...</text>
+
+    <!-- Wasm sandbox label -->
+    <rect x="580" y="158" width="455" height="30" rx="4" fill="rgba(168,85,247,0.04)" stroke="#a78bfa" stroke-width="0.5" stroke-dasharray="3,2"/>
+    <text x="807" y="171" fill="#a78bfa" font-size="7" text-anchor="middle">auth / rate-limit / ai-statistics 等为 Wasm 插件 (沙箱隔离) · routing-forwarding 为 Envoy 原生过滤器</text>
+    <text x="807" y="183" fill="#64748b" font-size="6.5" text-anchor="middle">网络过滤器、HCM、路由转发、集群管理等核心组件由 Envoy C++ 原生实现，非 Wasm</text>
+
+    <!-- Arrow: HTTP Filter Chain → Cluster -->
+    <line x1="805" y1="195" x2="805" y2="235" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
 
     <!-- ============================================================
-         xDS config annotations (right side)
+         4. CLUSTER (inside Envoy)
          ============================================================ -->
-    <text x="830" y="100" fill="#fb923c" font-size="9">← LDS 配置</text>
-    <text x="830" y="170" fill="#fb923c" font-size="9">← 过滤器配置</text>
-    <text x="830" y="330" fill="#fb923c" font-size="9">← CDS / EDS</text>
-    <text x="830" y="415" fill="#fb923c" font-size="9">← EDS 端点</text>
+    <rect x="460" y="240" width="690" height="120" rx="8" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.8"/>
+    <text x="805" y="268" fill="#fbbf24" font-size="12" font-weight="700" text-anchor="middle">Cluster Manager · 集群管理器</text>
+    <line x1="480" y1="278" x2="1130" y2="278" stroke="#1e293b" stroke-width="0.5"/>
 
-    <rect x="820" y="50" width="140" height="24" rx="4" fill="rgba(251,146,60,0.08)" stroke="#fb923c" stroke-width="0.8" stroke-dasharray="4,3"/>
-    <text x="890" y="66" fill="#fb923c" font-size="8" text-anchor="middle">来自 Pilot xDS</text>
+    <!-- Internal blocks -->
+    <rect x="480" y="290" width="140" height="32" rx="3" fill="rgba(251,191,36,0.08)"/>
+    <text x="550" y="310" fill="white" font-size="9" text-anchor="middle">负载均衡 (LB)</text>
 
-    <!-- LEGEND -->
-    <text x="60" y="510" fill="#94a3b8" font-size="8">图例:</text>
-    <rect x="110" y="502" width="12" height="9" rx="2" fill="rgba(34,211,238,0.15)" stroke="#22d3ee" stroke-width="1"/>
-    <text x="128" y="510" fill="#94a3b8" font-size="8">Listener</text>
-    <rect x="195" y="502" width="12" height="9" rx="2" fill="rgba(52,211,153,0.15)" stroke="#34d399" stroke-width="1"/>
-    <text x="213" y="510" fill="#94a3b8" font-size="8">Filter Chain (HTTP)</text>
-    <rect x="355" y="502" width="12" height="9" rx="2" fill="rgba(251,191,36,0.15)" stroke="#fbbf24" stroke-width="1"/>
-    <text x="373" y="510" fill="#94a3b8" font-size="8">Cluster</text>
-    <rect x="440" y="502" width="12" height="9" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a78bfa" stroke-width="1"/>
-    <text x="458" y="510" fill="#94a3b8" font-size="8">Endpoint</text>
-    <text x="530" y="510" fill="#fb923c" font-size="8">橙色虚线: xDS 配置推送</text>
+    <rect x="630" y="290" width="140" height="32" rx="3" fill="rgba(251,191,36,0.08)"/>
+    <text x="700" y="310" fill="white" font-size="9" text-anchor="middle">健康检查</text>
+
+    <rect x="780" y="290" width="140" height="32" rx="3" fill="rgba(251,191,36,0.08)"/>
+    <text x="850" y="310" fill="white" font-size="9" text-anchor="middle">连接池 (无锁)</text>
+
+    <rect x="930" y="290" width="130" height="32" rx="3" fill="rgba(251,191,36,0.08)"/>
+    <text x="995" y="310" fill="white" font-size="9" text-anchor="middle">熔断 (Envoy 原生)</text>
+
+    <!-- Health check note -->
+    <text x="805" y="350" fill="#64748b" font-size="7" text-anchor="middle">健康检查为独立后台探测任务，不经过业务请求链路</text>
+
+    <!-- Arrow: Cluster → Endpoint (crosses Envoy boundary) -->
+    <line x1="805" y1="360" x2="805" y2="475" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+
+    <!-- ============================================================
+         5. ENDPOINT (outside Envoy)
+         ============================================================ -->
+    <rect x="580" y="480" width="180" height="45" rx="8" fill="rgba(168,85,247,0.1)" stroke="#a78bfa" stroke-width="1.8"/>
+    <text x="670" y="500" fill="white" font-size="11" font-weight="700" text-anchor="middle">Endpoint · 端点</text>
+    <text x="670" y="518" fill="#94a3b8" font-size="8" text-anchor="middle">vLLM Pod · IP:Port</text>
+
+    <text x="670" y="475" fill="#64748b" font-size="7" text-anchor="middle">▲ Envoy 进程边界</text>
+
+    <!-- ============================================================
+         Client / Upstream
+         ============================================================ -->
+    <rect x="100" y="540" width="120" height="30" rx="5" fill="#0f172a" stroke="#94a3b8" stroke-width="1.2"/>
+    <text x="160" y="560" fill="white" font-size="9" font-weight="500" text-anchor="middle">Downstream</text>
+
+    <rect x="610" y="560" width="120" height="30" rx="5" fill="#0f172a" stroke="#94a3b8" stroke-width="1.2"/>
+    <text x="670" y="580" fill="white" font-size="9" font-weight="500" text-anchor="middle">Upstream</text>
+
+    <!-- Arrows: Client → Listener -->
+    <path d="M 160 540 L 160 157" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+    <text x="145" y="400" fill="#22d3ee" font-size="8">请求</text>
+
+    <!-- Arrows: Upstream -->
+    <line x1="670" y1="560" x2="670" y2="527" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- ============================================================
+         LEGEND
+         ============================================================ -->
+    <text x="50" y="610" fill="#64748b" font-size="8" font-weight="600">图例</text>
+
+    <rect x="100" y="602" width="14" height="10" rx="2" fill="rgba(34,211,238,0.15)" stroke="#22d3ee" stroke-width="1"/>
+    <text x="120" y="610" fill="#94a3b8" font-size="8">Listener</text>
+
+    <rect x="190" y="602" width="14" height="10" rx="2" fill="rgba(251,146,60,0.1)" stroke="#fb923c" stroke-width="1"/>
+    <text x="210" y="610" fill="#94a3b8" font-size="8">Network Filter</text>
+
+    <rect x="315" y="602" width="14" height="10" rx="2" fill="rgba(52,211,153,0.15)" stroke="#34d399" stroke-width="1"/>
+    <text x="335" y="610" fill="#94a3b8" font-size="8">HTTP Filter Chain</text>
+
+    <rect x="465" y="602" width="14" height="10" rx="2" fill="rgba(251,191,36,0.15)" stroke="#fbbf24" stroke-width="1"/>
+    <text x="485" y="610" fill="#94a3b8" font-size="8">Cluster</text>
+
+    <rect x="555" y="602" width="14" height="10" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a78bfa" stroke-width="1"/>
+    <text x="575" y="610" fill="#94a3b8" font-size="8">Endpoint</text>
+
+    <rect x="655" y="602" width="14" height="10" rx="2" fill="rgba(251,113,133,0.15)" stroke="#fb7185" stroke-width="1"/>
+    <text x="675" y="610" fill="#94a3b8" font-size="8">Wasm 插件</text>
+
+    <line x1="730" y1="607" x2="750" y2="607" stroke="#fb923c" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="758" y="610" fill="#94a3b8" font-size="8">xDS 推送</text>
+
+    <!-- xDS arrows pointing to components -->
+    <path d="M 880 110 L 252 110 L 252 107" fill="none" stroke="#fb923c" stroke-width="0.8" stroke-dasharray="3,2"/>
+    <path d="M 880 145 L 807 145 L 807 130" fill="none" stroke="#fb923c" stroke-width="0.8" stroke-dasharray="3,2"/>
+    <path d="M 880 162 L 807 162 L 807 300" fill="none" stroke="#fb923c" stroke-width="0.8" stroke-dasharray="3,2"/>
+    <path d="M 880 175 L 670 175 L 670 478" fill="none" stroke="#fb923c" stroke-width="0.8" stroke-dasharray="3,2"/>
+    <path d="M 880 192 L 152 192 L 152 155" fill="none" stroke="#a78bfa" stroke-width="0.8" stroke-dasharray="3,2"/>
+
   </svg>
 </div>
 
-<div class="modules">
+<div class="notes">
   <h2>组件说明</h2>
-  <div class="module-grid">
-    <div class="module">
+  <div class="note-grid">
+    <div class="note">
       <h3><span class="dot dot-blue"></span>Listener（监听器）</h3>
-      <p>监听指定 IP:Port，接受下游客户端连接。支持 TCP、HTTP、gRPC 等协议，负责 TLS 终止。一个 Envoy 可配置多个 Listener。</p>
+      <p>监听指定 IP:Port，接受下游连接。通过 LDS 动态获取配置，通过 SDS 动态获取 TLS 证书。TLS 终止在 Listener 层完成，解密后的明文流量交给 Network Filter。</p>
     </div>
-    <div class="module">
-      <h3><span class="dot dot-green"></span>Filter Chain（过滤器链）</h3>
-      <p>请求处理核心。MaaS 只用 HTTP Filter Chain，17 个 Wasm 插件串行执行。Envoy 原生还支持 Network Filter（TCP 代理等）和 Listener Filter，但 MaaS 作为 API 网关不需要。Wasm 插件在 Envoy 内置沙箱中运行，内存/故障隔离。</p>
+    <div class="note">
+      <h3><span class="dot dot-amber"></span>Network Filter（网络过滤器）</h3>
+      <p>处理 TCP/UDP 原始流量。核心组件是 HTTP 连接管理器 (HCM)，负责 HTTP 协议解析、多路复用。HCM 内部再启动 HTTP Filter Chain。Envoy C++ 原生实现。</p>
     </div>
-    <div class="module">
-      <h3><span class="dot dot-amber"></span>Cluster（集群）</h3>
-      <p>上游服务集合。通过 CDS/EDS 动态获取配置，提供负载均衡（轮询/最少连接）、主动+被动健康检查、熔断防级联故障。每个 Worker 线程独立连接池，无锁设计。</p>
+    <div class="note">
+      <h3><span class="dot dot-green"></span>HTTP Filter Chain（双向）</h3>
+      <p>MaaS 17 个插件在此链上串行执行。请求方向依次经过，响应方向反向再执行一遍（统计、改响应头等）。auth/rate-limit 等为 Wasm 插件（沙箱隔离），routing-forwarding 为 Envoy 原生 C++ 过滤器。路由规则由 RDS 动态下发。</p>
     </div>
-    <div class="module">
-      <h3><span class="dot dot-purple"></span>Endpoint（端点）</h3>
-      <p>集群中的具体服务实例（IP:Port），最小调度单元。通过 EDS 协议从控制面动态推送，支持扩缩容和滚动更新，毫秒级感知变化。</p>
+    <div class="note">
+      <h3><span class="dot dot-purple"></span>Cluster Manager + Endpoint</h3>
+      <p>Cluster Manager（Envoy 进程内）管理负载均衡、健康检查、连接池、原生熔断。每个 Worker 线程独立连接池，无锁设计。健康检查为独立后台探测，不经过业务请求链路。Endpoint 为具体上游实例，通过 EDS 动态推送，在 Envoy 进程外。</p>
     </div>
   </div>
 </div>
 
 <p class="footer">
-  Envoy 核心架构 · Listener → Filter Chain (HTTP) → Cluster → Endpoint · 参考: jimmysong.io/envoy-handbook
+  Envoy 核心架构 · Listener → Network Filter → HTTP Filter Chain → Cluster → Endpoint · 参考 jimmysong.io
 </p>
 
 </div>
