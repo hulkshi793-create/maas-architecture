@@ -80,7 +80,7 @@
     <rect width="100%" height="100%" fill="url(#grid)"/>
 
     <!-- Envoy shell -->
-    <rect x="30" y="20" width="1040" height="350" rx="12" fill="rgba(6,78,59,0.04)" stroke="#34d399" stroke-width="1.5"/>
+    <rect x="30" y="20" width="1040" height="260" rx="12" fill="rgba(6,78,59,0.04)" stroke="#34d399" stroke-width="1.5"/>
     <text x="52" y="48" fill="#34d399" font-size="14" font-weight="700">Envoy Proxy</text>
 
     <!-- ============================================================
@@ -117,43 +117,29 @@
     <rect x="320" y="150" width="105" height="24" rx="3" fill="rgba(168,85,247,0.12)" stroke="#a78bfa" stroke-width="0.6"/>
     <text x="372" y="166" fill="white" font-size="8" text-anchor="middle">routing-forwarding</text>
 
-    <rect x="432" y="150" width="80" height="24" rx="3" fill="rgba(168,85,247,0.12)" stroke="#a78bfa" stroke-width="0.6"/>
-    <text x="472" y="166" fill="white" font-size="8" text-anchor="middle">routing-group</text>
+    <rect x="432" y="150" width="50" height="24" rx="3" fill="rgba(251,113,133,0.15)" stroke="#fb7185" stroke-width="0.6"/>
+    <text x="457" y="166" fill="white" font-size="8" text-anchor="middle">auth</text>
 
-    <rect x="519" y="150" width="50" height="24" rx="3" fill="rgba(251,113,133,0.15)" stroke="#fb7185" stroke-width="0.6"/>
-    <text x="544" y="166" fill="white" font-size="8" text-anchor="middle">auth</text>
+    <rect x="489" y="150" width="95" height="24" rx="3" fill="rgba(251,113,133,0.12)" stroke="#fb7185" stroke-width="0.6"/>
+    <text x="536" y="166" fill="white" font-size="8" text-anchor="middle">rate-limit ×4</text>
 
-    <rect x="576" y="150" width="60" height="24" rx="3" fill="rgba(251,113,133,0.15)" stroke="#fb7185" stroke-width="0.6"/>
-    <text x="606" y="166" fill="white" font-size="8" text-anchor="middle">key-status</text>
+    <rect x="591" y="150" width="100" height="24" rx="3" fill="rgba(251,113,133,0.12)" stroke="#fb7185" stroke-width="0.6"/>
+    <text x="641" y="166" fill="white" font-size="8" text-anchor="middle">circuit-breaker</text>
 
-    <rect x="643" y="150" width="95" height="24" rx="3" fill="rgba(251,113,133,0.12)" stroke="#fb7185" stroke-width="0.6"/>
-    <text x="690" y="166" fill="white" font-size="8" text-anchor="middle">rate-limit ×4</text>
+    <rect x="698" y="150" width="90" height="24" rx="3" fill="rgba(168,85,247,0.12)" stroke="#a78bfa" stroke-width="0.6"/>
+    <text x="743" y="166" fill="white" font-size="8" text-anchor="middle">ai-statistics</text>
 
     <!-- Row 2 -->
-    <rect x="320" y="180" width="100" height="24" rx="3" fill="rgba(251,113,133,0.12)" stroke="#fb7185" stroke-width="0.6"/>
-    <text x="370" y="196" fill="white" font-size="8" text-anchor="middle">circuit-breaker</text>
+    <rect x="320" y="180" width="100" height="24" rx="3" fill="rgba(168,85,247,0.12)" stroke="#a78bfa" stroke-width="0.6"/>
+    <text x="370" y="196" fill="white" font-size="8" text-anchor="middle">service-fallback</text>
 
-    <rect x="427" y="180" width="100" height="24" rx="3" fill="rgba(251,113,133,0.12)" stroke="#fb7185" stroke-width="0.6"/>
-    <text x="477" y="196" fill="white" font-size="8" text-anchor="middle">service-fallback</text>
+    <rect x="427" y="180" width="120" height="24" rx="3" fill="rgba(168,85,247,0.08)" stroke="#a78bfa" stroke-width="0.5"/>
+    <text x="487" y="196" fill="#94a3b8" font-size="7" text-anchor="middle">header-transformer ×2</text>
 
-    <rect x="534" y="180" width="90" height="24" rx="3" fill="rgba(168,85,247,0.12)" stroke="#a78bfa" stroke-width="0.6"/>
-    <text x="579" y="196" fill="white" font-size="8" text-anchor="middle">ai-statistics</text>
+    <rect x="554" y="180" width="80" height="24" rx="3" fill="rgba(168,85,247,0.08)" stroke="#a78bfa" stroke-width="0.5"/>
+    <text x="594" y="196" fill="#94a3b8" font-size="7" text-anchor="middle">detailed-data</text>
 
-    <rect x="631" y="180" width="80" height="24" rx="3" fill="rgba(168,85,247,0.08)" stroke="#a78bfa" stroke-width="0.5"/>
-    <text x="671" y="196" fill="#94a3b8" font-size="7" text-anchor="middle">ip-restriction</text>
-
-    <rect x="718" y="180" width="75" height="24" rx="3" fill="rgba(168,85,247,0.08)" stroke="#a78bfa" stroke-width="0.5"/>
-    <text x="755" y="196" fill="#94a3b8" font-size="7" text-anchor="middle">detailed-data</text>
-
-    <!-- Row 3 -->
-    <rect x="320" y="210" width="120" height="24" rx="3" fill="rgba(168,85,247,0.08)" stroke="#a78bfa" stroke-width="0.5"/>
-    <text x="380" y="226" fill="#94a3b8" font-size="7" text-anchor="middle">header-request-transformer</text>
-
-    <rect x="447" y="210" width="120" height="24" rx="3" fill="rgba(168,85,247,0.08)" stroke="#a78bfa" stroke-width="0.5"/>
-    <text x="507" y="226" fill="#94a3b8" font-size="7" text-anchor="middle">header-response-transformer</text>
-
-    <rect x="574" y="210" width="120" height="24" rx="3" fill="rgba(168,85,247,0.08)" stroke="#a78bfa" stroke-width="0.5"/>
-    <text x="634" y="226" fill="#94a3b8" font-size="7" text-anchor="middle">info-register</text>
+    <text x="660" y="196" fill="#94a3b8" font-size="9">...</text>
 
     <!-- Wasm sandbox note -->
     <rect x="320" y="238" width="470" height="16" rx="3" fill="rgba(168,85,247,0.04)" stroke="#a78bfa" stroke-width="0.5" stroke-dasharray="3,2"/>
