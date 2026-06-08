@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>maas-gateway-app 后端架构图</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:'Inter','JetBrains Mono',monospace;
+    background:radial-gradient(ellipse at top,#0f1729 0%,#020617 60%);
+    min-height:100vh;padding:2rem;color:#e2e8f0;
+  }
+  .container{max-width:1400px;margin:0 auto}
+  .header{margin-bottom:1.75rem;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem}
+  .header-left{display:flex;flex-direction:column;gap:.4rem}
+  .title-row{display:flex;align-items:center;gap:.85rem}
+  .pulse-dot{width:10px;height:10px;background:#34d399;border-radius:50%;box-shadow:0 0 12px #34d399;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.85)}}
+  h1{font-size:1.6rem;font-weight:700;letter-spacing:-.02em;background:linear-gradient(90deg,#fff,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .subtitle{color:#64748b;font-size:.82rem;margin-left:1.65rem;font-family:'JetBrains Mono',monospace}
+  .badges{display:flex;gap:.5rem;flex-wrap:wrap}
+  .badge{font-family:'JetBrains Mono',monospace;font-size:.7rem;padding:.3rem .65rem;border-radius:6px;background:rgba(15,23,42,.6);border:1px solid #1e293b;color:#94a3b8}
+  .badge.green{border-color:rgba(52,211,153,.35);color:#6ee7b7}
+  .badge.amber{border-color:rgba(251,191,36,.35);color:#fcd34d}
+  .badge.violet{border-color:rgba(167,139,250,.35);color:#c4b5fd}
+  .diagram{
+    background:linear-gradient(180deg,rgba(15,23,42,.7),rgba(2,6,23,.4));
+    border-radius:16px;border:1px solid #1e293b;padding:1.5rem;
+    box-shadow:0 20px 60px -20px rgba(0,0,0,.5);
+    backdrop-filter:blur(10px);
+  }
+  svg{width:100%;display:block;min-width:1100px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-top:1.5rem}
+  .card{
+    background:linear-gradient(180deg,rgba(15,23,42,.7),rgba(15,23,42,.4));
+    border-radius:12px;border:1px solid #1e293b;padding:1.1rem 1.25rem;
+    transition:all .3s;
+  }
+  .card:hover{border-color:#334155;transform:translateY(-2px)}
+  .card-header{display:flex;align-items:center;gap:.55rem;margin-bottom:.75rem;padding-bottom:.6rem;border-bottom:1px solid #1e293b}
+  .card-icon{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+  .card-icon.emerald{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3)}
+  .card-icon.amber{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+  .card-icon.violet{background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3)}
+  .card h3{font-size:.9rem;font-weight:600;color:#e2e8f0}
+  .card ul{list-style:none;font-size:.78rem;color:#94a3b8;line-height:1.7}
+  .card li{padding-left:.9rem;position:relative;margin-bottom:.25rem}
+  .card li::before{content:'▸';position:absolute;left:0;color:#475569}
+  .card li code{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:#cbd5e1;background:rgba(30,41,59,.6);padding:1px 5px;border-radius:3px}
+  .footer{text-align:center;margin-top:1.5rem;color:#475569;font-size:.72rem;font-family:'JetBrains Mono',monospace}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="header-left">
+      <div class="title-row">
+        <div class="pulse-dot"></div>
+        <h1>maas-gateway-app · 后端代码架构</h1>
+      </div>
+      <p class="subtitle">Spring Boot 多模块项目 · 4 大模块 · 615 文件</p>
+    </div>
+    <div class="badges">
+      <span class="badge green">Spring Boot 3.4.5</span>
+      <span class="badge green">Java 17</span>
+      <span class="badge amber">Higress · K8s CRD</span>
+      <span class="badge violet">MyBatis-Plus</span>
+      <span class="badge">Maven</span>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1320 980" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g-frontend" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0e7490" stop-opacity=".4"/><stop offset="1" stop-color="#0e7490" stop-opacity=".15"/></linearGradient>
+        <linearGradient id="g-backend" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#047857" stop-opacity=".35"/><stop offset="1" stop-color="#047857" stop-opacity=".1"/></linearGradient>
+        <linearGradient id="g-data" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6d28d9" stop-opacity=".4"/><stop offset="1" stop-color="#6d28d9" stop-opacity=".15"/></linearGradient>
+        <linearGradient id="g-k8s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b45309" stop-opacity=".35"/><stop offset="1" stop-color="#b45309" stop-opacity=".12"/></linearGradient>
+        <linearGradient id="g-msg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c2410c" stop-opacity=".4"/><stop offset="1" stop-color="#c2410c" stop-opacity=".15"/></linearGradient>
+        <linearGradient id="g-alert" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9f1239" stop-opacity=".35"/><stop offset="1" stop-color="#9f1239" stop-opacity=".12"/></linearGradient>
+        <marker id="ah-cyan" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 z" fill="#22d3ee"/></marker>
+        <marker id="ah-emerald" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 z" fill="#34d399"/></marker>
+        <marker id="ah-violet" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 z" fill="#a78bfa"/></marker>
+        <marker id="ah-amber" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 z" fill="#fbbf24"/></marker>
+        <marker id="ah-orange" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 z" fill="#fb923c"/></marker>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0 L0 0 0 40" fill="none" stroke="#1e293b" stroke-width=".4" opacity=".5"/></pattern>
+        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+
+      <rect width="100%" height="100%" fill="url(#grid)"/>
+
+      <!-- LAYER LABELS -->
+      <text x="20" y="80" font-family="JetBrains Mono,monospace" font-size="9" font-weight="600" fill="#475569" letter-spacing=".15em">L1 · Client</text>
+      <text x="20" y="200" font-family="JetBrains Mono,monospace" font-size="9" font-weight="600" fill="#475569" letter-spacing=".15em">L2 · Entry</text>
+      <text x="20" y="340" font-family="JetBrains Mono,monospace" font-size="9" font-weight="600" fill="#475569" letter-spacing=".15em">L3 · Business</text>
+      <text x="20" y="700" font-family="JetBrains Mono,monospace" font-size="9" font-weight="600" fill="#475569" letter-spacing=".15em">L4 · Plugins</text>
+      <text x="20" y="850" font-family="JetBrains Mono,monospace" font-size="9" font-weight="600" fill="#475569" letter-spacing=".15em">L5 · External</text>
+      <line x1="105" y1="60" x2="105" y2="960" stroke="#1e293b" stroke-width="1" stroke-dasharray="2,4"/>
+
+      <!-- ============ L1 FRONTEND ============ -->
+      <rect x="540" y="40" width="240" height="60" rx="10" fill="url(#g-frontend)" stroke="#22d3ee" stroke-width="1.5" filter="url(#glow)"/>
+      <text x="660" y="65" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">maas-gateway-web</text>
+      <text x="660" y="82" text-anchor="middle" font-size="9" fill="#94a3b8">React + Vite + Antd</text>
+      <text x="660" y="94" text-anchor="middle" font-size="8" fill="#64748b">管理门户</text>
+
+      <line x1="660" y1="100" x2="660" y2="158" stroke="#22d3ee" stroke-width="1.8" marker-end="url(#ah-cyan)"/>
+      <rect x="615" y="115" width="90" height="18" rx="4" fill="#020617" stroke="#22d3ee" stroke-width=".8" opacity=".9"/>
+      <text x="660" y="128" text-anchor="middle" font-size="8.5" fill="#22d3ee" font-weight="500" font-family="JetBrains Mono,monospace">REST API</text>
+
+      <!-- ============ L2 ADMIN-SERVER ============ -->
+      <rect x="130" y="160" width="1170" height="510" rx="14" fill="rgba(6,78,59,.04)" stroke="#34d399" stroke-width="1" stroke-dasharray="6,4"/>
+      <text x="148" y="180" font-size="11" font-weight="600" fill="#34d399" font-family="JetBrains Mono,monospace">▸ maas-gateway-app</text>
+      <text x="288" y="180" font-size="8" fill="#64748b">Spring Boot 3.4.5 · Java 17 · 4 modules</text>
+
+      <rect x="540" y="170" width="240" height="42" rx="8" fill="url(#g-backend)" stroke="#34d399" stroke-width="1.5"/>
+      <text x="660" y="190" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">admin-server</text>
+      <text x="660" y="204" text-anchor="middle" font-size="9" fill="#94a3b8">GatewayAdminApplication · 启动入口</text>
+
+      <!-- ============ ADMIN-MODULE ============ -->
+      <rect x="150" y="225" width="1130" height="430" rx="10" fill="rgba(6,78,59,.025)" stroke="#34d399" stroke-width=".8" stroke-dasharray="4,3"/>
+      <text x="166" y="244" font-size="11" font-weight="600" fill="#34d399" font-family="JetBrains Mono,monospace">▸ admin-module</text>
+
+      <!-- ===== admin-web ===== -->
+      <rect x="170" y="258" width="640" height="385" rx="8" fill="rgba(6,78,59,.04)" stroke="#34d399" stroke-width=".8"/>
+      <text x="184" y="276" font-size="10" font-weight="600" fill="#6ee7b7" font-family="JetBrains Mono,monospace">admin-web · 核心业务层</text>
+
+      <!-- console -->
+      <rect x="184" y="288" width="280" height="345" rx="6" fill="rgba(6,78,59,.06)" stroke="rgba(52,211,153,.4)" stroke-width=".6" stroke-dasharray="2,2"/>
+      <text x="194" y="302" font-size="8" font-weight="600" fill="#34d399" font-family="JetBrains Mono,monospace" letter-spacing=".15em">CONSOLE / 管理控制台</text>
+
+      <rect x="194" y="312" width="260" height="108" rx="7" fill="url(#g-backend)" stroke="#34d399" stroke-width="1.3"/>
+      <text x="324" y="330" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">controller / REST API</text>
+      <line x1="210" y1="338" x2="438" y2="338" stroke="#34d399" stroke-width=".4" opacity=".4"/>
+      <text x="206" y="354" font-size="9" fill="#94a3b8">• RoutesController</text><text x="380" y="354" font-size="8" fill="#64748b" text-anchor="end">路由+限流</text>
+      <text x="206" y="368" font-size="9" fill="#94a3b8">• ApiKeyController</text><text x="380" y="368" font-size="8" fill="#64748b" text-anchor="end">Key 管理</text>
+      <text x="206" y="382" font-size="9" fill="#94a3b8">• WasmPlugin*Controller</text><text x="380" y="382" font-size="8" fill="#64748b" text-anchor="end">插件 CRUD</text>
+      <text x="206" y="396" font-size="9" fill="#94a3b8">• Services / Tags / BaseModel</text>
+      <text x="324" y="412" text-anchor="middle" font-size="8" fill="#34d399">前端请求 → 组装 CRD → 写 K8s</text>
+
+      <rect x="194" y="430" width="260" height="62" rx="7" fill="rgba(6,78,59,.22)" stroke="#34d399" stroke-width="1"/>
+      <text x="324" y="447" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">service / 业务逻辑</text>
+      <line x1="210" y1="454" x2="438" y2="454" stroke="#34d399" stroke-width=".4" opacity=".4"/>
+      <text x="324" y="470" text-anchor="middle" font-size="9" fill="#94a3b8">ApiKeyService · RouteInfoService</text>
+      <text x="324" y="484" text-anchor="middle" font-size="9" fill="#94a3b8">AuthKeyConfigService · TestService</text>
+
+      <rect x="194" y="501" width="260" height="62" rx="7" fill="rgba(6,78,59,.18)" stroke="#34d399" stroke-width=".9"/>
+      <text x="324" y="518" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">model · dto · util</text>
+      <line x1="210" y1="525" x2="438" y2="525" stroke="#34d399" stroke-width=".4" opacity=".4"/>
+      <text x="324" y="541" text-anchor="middle" font-size="9" fill="#94a3b8">RouteDetail · PluginConfig · ApiKey</text>
+      <text x="324" y="555" text-anchor="middle" font-size="8" fill="#fbbf24">PluginUtil (113 符号) ← K8s CRD 工具</text>
+
+      <rect x="194" y="572" width="260" height="50" rx="7" fill="rgba(76,29,149,.22)" stroke="#a78bfa" stroke-width="1"/>
+      <text x="324" y="590" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">mapper / MyBatis 接口</text>
+      <text x="324" y="608" text-anchor="middle" font-size="8" fill="#a78bfa">→ admin-infrastructure 数据层</text>
+
+      <!-- alert -->
+      <rect x="478" y="288" width="160" height="170" rx="7" fill="url(#g-alert)" stroke="#fb7185" stroke-width="1.2"/>
+      <text x="558" y="306" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">alert / 告警</text>
+      <line x1="490" y1="313" x2="626" y2="313" stroke="#fb7185" stroke-width=".4" opacity=".4"/>
+      <text x="558" y="330" text-anchor="middle" font-size="9" fill="#94a3b8">AlertMetaDataController</text>
+      <text x="558" y="346" text-anchor="middle" font-size="9" fill="#94a3b8">AlertPolicyController</text>
+      <text x="558" y="362" text-anchor="middle" font-size="9" fill="#94a3b8">AlertPolicyServiceImpl</text>
+      <text x="558" y="378" text-anchor="middle" font-size="9" fill="#94a3b8">AlertTaskService</text>
+      <text x="558" y="402" text-anchor="middle" font-size="8" fill="#fb7185">规则 · 触发 · 通知</text>
+      <rect x="498" y="418" width="120" height="28" rx="5" fill="rgba(136,19,55,.3)" stroke="#fb7185" stroke-width=".8"/>
+      <text x="558" y="436" text-anchor="middle" font-size="9" fill="#fda4af">alert 子系统</text>
+
+      <rect x="478" y="468" width="160" height="40" rx="7" fill="rgba(251,146,60,.2)" stroke="#fb923c" stroke-width="1"/>
+      <text x="558" y="486" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">aop / 操作日志</text>
+      <text x="558" y="500" text-anchor="middle" font-size="8" fill="#64748b">操作审计切面</text>
+
+      <!-- metrics -->
+      <rect x="652" y="288" width="148" height="345" rx="6" fill="rgba(120,53,15,.06)" stroke="rgba(251,191,36,.4)" stroke-width=".6" stroke-dasharray="2,2"/>
+      <text x="662" y="302" font-size="8" font-weight="600" fill="#fbbf24" font-family="JetBrains Mono,monospace" letter-spacing=".15em">METRICS / 监控统计</text>
+
+      <rect x="662" y="312" width="128" height="54" rx="6" fill="url(#g-k8s)" stroke="#fbbf24" stroke-width="1.2"/>
+      <text x="726" y="330" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">controller</text>
+      <text x="726" y="346" text-anchor="middle" font-size="9" fill="#94a3b8">GlobalMonitor</text>
+      <text x="726" y="358" text-anchor="middle" font-size="9" fill="#94a3b8">ServiceMonitor</text>
+
+      <rect x="662" y="376" width="128" height="80" rx="6" fill="rgba(120,53,15,.22)" stroke="#fbbf24" stroke-width="1"/>
+      <text x="726" y="393" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">service</text>
+      <text x="726" y="409" text-anchor="middle" font-size="9" fill="#94a3b8">MetricsDataHandler</text>
+      <text x="726" y="423" text-anchor="middle" font-size="9" fill="#94a3b8">ESQueryService</text>
+      <text x="726" y="437" text-anchor="middle" font-size="9" fill="#94a3b8">ModelDataPush</text>
+      <text x="726" y="451" text-anchor="middle" font-size="9" fill="#94a3b8">ServiceMetricsCollector</text>
+
+      <rect x="662" y="466" width="128" height="68" rx="6" fill="rgba(251,191,36,.13)" stroke="#fbbf24" stroke-width=".9"/>
+      <text x="726" y="483" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">config</text>
+      <text x="726" y="499" text-anchor="middle" font-size="9" fill="#94a3b8">ES · Kafka</text>
+      <text x="726" y="513" text-anchor="middle" font-size="9" fill="#94a3b8">Redis · SSE</text>
+      <text x="726" y="527" text-anchor="middle" font-size="9" fill="#94a3b8">WebSocket</text>
+
+      <rect x="662" y="544" width="128" height="58" rx="6" fill="rgba(251,191,36,.1)" stroke="#fbbf24" stroke-width=".9"/>
+      <text x="726" y="561" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">model</text>
+      <text x="726" y="577" text-anchor="middle" font-size="9" fill="#94a3b8">ESMonitoringInfo</text>
+      <text x="726" y="591" text-anchor="middle" font-size="9" fill="#94a3b8">AIMonitoringIndex</text>
+
+      <!-- admin-umps / toolkit -->
+      <rect x="830" y="258" width="200" height="80" rx="8" fill="url(#g-backend)" stroke="#34d399" stroke-width="1.2"/>
+      <text x="930" y="280" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">admin-umps</text>
+      <line x1="850" y1="287" x2="1010" y2="287" stroke="#34d399" stroke-width=".4" opacity=".4"/>
+      <text x="930" y="305" text-anchor="middle" font-size="9" fill="#94a3b8">用户 · 权限 · 审计</text>
+      <text x="930" y="322" text-anchor="middle" font-size="8" fill="#64748b">User · Role · Audit</text>
+
+      <rect x="1050" y="258" width="200" height="80" rx="8" fill="rgba(30,41,59,.5)" stroke="#64748b" stroke-width="1.2"/>
+      <text x="1150" y="280" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">admin-toolkit</text>
+      <line x1="1070" y1="287" x2="1230" y2="287" stroke="#64748b" stroke-width=".4" opacity=".4"/>
+      <text x="1150" y="305" text-anchor="middle" font-size="9" fill="#94a3b8">通用工具类</text>
+      <text x="1150" y="322" text-anchor="middle" font-size="8" fill="#64748b">Common Utils</text>
+
+      <!-- admin-infrastructure -->
+      <rect x="830" y="358" width="420" height="68" rx="8" fill="url(#g-data)" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="1040" y="382" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">admin-infrastructure · 数据层</text>
+      <line x1="850" y1="390" x2="1230" y2="390" stroke="#a78bfa" stroke-width=".4" opacity=".4"/>
+      <text x="1040" y="408" text-anchor="middle" font-size="9" fill="#94a3b8">Entity · Mapper XML · Repository → MySQL</text>
+
+      <!-- arrow mapper -> infrastructure -->
+      <path d="M 454 597 Q 700 597 826 392" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#ah-violet)"/>
+
+      <!-- key flow note panel -->
+      <rect x="830" y="442" width="420" height="200" rx="8" fill="rgba(15,23,42,.5)" stroke="#1e293b" stroke-width="1"/>
+      <text x="848" y="463" font-size="10" font-weight="600" fill="#fbbf24" font-family="JetBrains Mono,monospace">⚡ 关键数据流</text>
+      <line x1="848" y1="471" x2="1232" y2="471" stroke="#1e293b" stroke-width="1"/>
+
+      <circle cx="858" cy="487" r="3" fill="#34d399"/>
+      <text x="870" y="491" font-size="9" fill="#6ee7b7">① 配置下发流</text>
+      <text x="870" y="505" font-size="8" fill="#64748b">Controller → PluginUtil → SDK → K8s CRD apply</text>
+      <text x="870" y="518" font-size="8" fill="#64748b">→ Higress Controller → xDS → Envoy</text>
+
+      <circle cx="858" cy="538" r="3" fill="#fbbf24"/>
+      <text x="870" y="542" font-size="9" fill="#fcd34d">② 监控数据流</text>
+      <text x="870" y="556" font-size="8" fill="#64748b">Envoy ALS gRPC → Kafka → ES (日志存储)</text>
+      <text x="870" y="569" font-size="8" fill="#64748b">→ MetricsDataHandler 聚合 → MySQL 存储</text>
+
+      <circle cx="858" cy="589" r="3" fill="#a78bfa"/>
+      <text x="870" y="593" font-size="9" fill="#c4b5fd">③ 限流计数流</text>
+      <text x="870" y="607" font-size="8" fill="#64748b">Wasm 插件 (api-key-rate-limit) → Redis</text>
+      <text x="870" y="620" font-size="8" fill="#64748b">实时计数 · 不经 Java 后端</text>
+
+      <!-- ============ L4 ADMIN-PLUGIN ============ -->
+      <rect x="130" y="690" width="1170" height="100" rx="12" fill="rgba(251,191,36,.04)" stroke="#fbbf24" stroke-width=".9" stroke-dasharray="6,4"/>
+      <text x="148" y="710" font-size="11" font-weight="600" fill="#fbbf24" font-family="JetBrains Mono,monospace">▸ admin-plugin · 插件 &amp; SDK</text>
+
+      <rect x="150" y="722" width="320" height="58" rx="8" fill="url(#g-k8s)" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="310" y="742" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">higress-admin-sdk · K8s 客户端</text>
+      <text x="310" y="757" text-anchor="middle" font-size="9" fill="#94a3b8">KubernetesClientService · ModelConverter</text>
+      <text x="310" y="771" text-anchor="middle" font-size="8" fill="#fbbf24">V1alpha1WasmPlugin · V1McpBridge CRD</text>
+
+      <rect x="490" y="722" width="170" height="58" rx="8" fill="rgba(251,191,36,.13)" stroke="#fbbf24" stroke-width="1"/>
+      <text x="575" y="742" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">higress-plugin</text>
+      <text x="575" y="758" text-anchor="middle" font-size="9" fill="#94a3b8">Spring 自动装配</text>
+      <text x="575" y="772" text-anchor="middle" font-size="8" fill="#64748b">Auto Configuration</text>
+
+      <rect x="680" y="722" width="170" height="58" rx="8" fill="rgba(30,41,59,.5)" stroke="#64748b" stroke-width="1"/>
+      <text x="765" y="742" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">nacos-register</text>
+      <text x="765" y="758" text-anchor="middle" font-size="9" fill="#94a3b8">prometheus-metrics</text>
+
+      <rect x="870" y="722" width="200" height="58" rx="8" fill="rgba(30,41,59,.5)" stroke="#64748b" stroke-width="1"/>
+      <text x="970" y="742" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">mapstruct-plus / spring-web</text>
+      <text x="970" y="758" text-anchor="middle" font-size="9" fill="#94a3b8">通用扩展</text>
+
+      <rect x="1090" y="722" width="190" height="58" rx="8" fill="rgba(30,41,59,.4)" stroke="#64748b" stroke-width="1"/>
+      <text x="1185" y="742" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">distribution</text>
+      <text x="1185" y="758" text-anchor="middle" font-size="9" fill="#94a3b8">SQL 脚本 · 文档</text>
+
+      <!-- ============ L5 EXTERNAL ============ -->
+      <rect x="130" y="810" width="1170" height="160" rx="12" fill="rgba(30,41,59,.2)" stroke="#475569" stroke-width="1" stroke-dasharray="6,3"/>
+      <text x="148" y="830" font-size="11" font-weight="600" fill="#94a3b8" font-family="JetBrains Mono,monospace">▸ External Systems · 外部依赖</text>
+
+      <!-- MySQL -->
+      <rect x="150" y="843" width="200" height="115" rx="10" fill="url(#g-data)" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="250" y="867" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">🗄  MySQL</text>
+      <line x1="170" y1="876" x2="330" y2="876" stroke="#a78bfa" stroke-width=".4" opacity=".4"/>
+      <text x="250" y="894" text-anchor="middle" font-size="9" fill="#94a3b8">服务 · 路由 · ApiKey</text>
+      <text x="250" y="910" text-anchor="middle" font-size="9" fill="#94a3b8">告警 · 配置 · 操作日志</text>
+      <text x="250" y="926" text-anchor="middle" font-size="9" fill="#94a3b8">stats_day · stats_hour</text>
+      <text x="250" y="946" text-anchor="middle" font-size="8" fill="#a78bfa">via MyBatis-Plus</text>
+
+      <!-- ES -->
+      <rect x="370" y="843" width="200" height="115" rx="10" fill="rgba(76,29,149,.3)" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="470" y="867" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">🔍  Elasticsearch</text>
+      <line x1="390" y1="876" x2="550" y2="876" stroke="#a78bfa" stroke-width=".4" opacity=".4"/>
+      <text x="470" y="894" text-anchor="middle" font-size="9" fill="#94a3b8">Access Log 存储</text>
+      <text x="470" y="910" text-anchor="middle" font-size="9" fill="#94a3b8">监控数据查询</text>
+      <text x="470" y="926" text-anchor="middle" font-size="9" fill="#94a3b8">dateHistogram 聚合</text>
+      <text x="470" y="946" text-anchor="middle" font-size="8" fill="#a78bfa">Java ES Client</text>
+
+      <!-- Kafka -->
+      <rect x="590" y="843" width="200" height="115" rx="10" fill="url(#g-msg)" stroke="#fb923c" stroke-width="1.5"/>
+      <text x="690" y="867" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">📨  Kafka</text>
+      <line x1="610" y1="876" x2="770" y2="876" stroke="#fb923c" stroke-width=".4" opacity=".4"/>
+      <text x="690" y="894" text-anchor="middle" font-size="9" fill="#94a3b8">ALS 日志消息</text>
+      <text x="690" y="910" text-anchor="middle" font-size="9" fill="#94a3b8">异步解耦缓冲</text>
+      <text x="690" y="926" text-anchor="middle" font-size="9" fill="#94a3b8">→ ES 消费写入</text>
+      <text x="690" y="946" text-anchor="middle" font-size="8" fill="#fb923c">message bus</text>
+
+      <!-- Redis -->
+      <rect x="810" y="843" width="200" height="115" rx="10" fill="rgba(76,29,149,.28)" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="910" y="867" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">⚡  Redis</text>
+      <line x1="830" y1="876" x2="990" y2="876" stroke="#a78bfa" stroke-width=".4" opacity=".4"/>
+      <text x="910" y="894" text-anchor="middle" font-size="9" fill="#94a3b8">限流计数 (Wasm)</text>
+      <text x="910" y="910" text-anchor="middle" font-size="9" fill="#94a3b8">Spring Session</text>
+      <text x="910" y="926" text-anchor="middle" font-size="9" fill="#94a3b8">JobRunr 任务队列</text>
+      <text x="910" y="946" text-anchor="middle" font-size="8" fill="#a78bfa">in-memory cache</text>
+
+      <!-- K8s + Higress -->
+      <rect x="1030" y="843" width="250" height="115" rx="10" fill="url(#g-k8s)" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="1155" y="867" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="JetBrains Mono,monospace">☸  Kubernetes + Higress</text>
+      <line x1="1050" y1="876" x2="1260" y2="876" stroke="#fbbf24" stroke-width=".4" opacity=".4"/>
+      <text x="1155" y="894" text-anchor="middle" font-size="9" fill="#94a3b8">WasmPlugin / McpBridge CRD</text>
+      <text x="1155" y="910" text-anchor="middle" font-size="9" fill="#94a3b8">api-key-rate-limit · rate-limit</text>
+      <text x="1155" y="926" text-anchor="middle" font-size="9" fill="#94a3b8">Higress Gateway · Envoy + Wasm</text>
+      <text x="1155" y="946" text-anchor="middle" font-size="8" fill="#fbbf24">xDS 控制面 + 数据面</text>
+
+      <!-- ============ DATA FLOW ARROWS (all curves) ============ -->
+
+      <!-- ① PluginUtil -> SDK -->
+      <path d="M 324 563 Q 310 640 310 718" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#ah-amber)" opacity=".85"/>
+      <rect x="248" y="625" width="120" height="20" rx="4" fill="#020617" stroke="#fbbf24" stroke-width=".8" opacity=".95"/>
+      <text x="308" y="639" text-anchor="middle" font-size="8.5" fill="#fbbf24" font-weight="500" font-family="JetBrains Mono,monospace">① 组装 CRD</text>
+
+      <!-- SDK -> K8s -->
+      <path d="M 470 751 Q 800 750 1155 839" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#ah-amber)"/>
+
+      <!-- ② Higress -> Kafka -->
+      <path d="M 1030 900 Q 910 895 792 900" fill="none" stroke="#fb923c" stroke-width="1.5" marker-end="url(#ah-orange)"/>
+      <text x="910" y="893" text-anchor="middle" font-size="8.5" fill="#fb923c" font-weight="500" font-family="JetBrains Mono,monospace">② ALS gRPC → Kafka</text>
+
+      <!-- Kafka -> ES -->
+      <path d="M 590 900 Q 580 900 572 900" fill="none" stroke="#fb923c" stroke-width="1.5" marker-end="url(#ah-orange)"/>
+
+      <!-- ES -> metrics service -->
+      <path d="M 470 841 Q 470 630 726 416" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#ah-amber)"/>
+      <text x="505" y="660" text-anchor="middle" font-size="8.5" fill="#fbbf24" font-weight="500" font-family="JetBrains Mono,monospace">查询日志</text>
+
+      <!-- metrics aggregate -> MySQL -->
+      <path d="M 662 410 Q 456 410 250 839" fill="none" stroke="#a78bfa" stroke-width="1.3" stroke-dasharray="4,3" marker-end="url(#ah-violet)" opacity=".85"/>
+      <text x="450" y="403" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-weight="500" font-family="JetBrains Mono,monospace">聚合写入 stats_*</text>
+
+      <!-- ③ Wasm → Redis -->
+      <path d="M 1030 930 Q 1020 930 1012 930" fill="none" stroke="#a78bfa" stroke-width="1.2" stroke-dasharray="3,3" opacity=".7" marker-end="url(#ah-violet)"/>
+      <text x="960" y="924" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-weight="500" font-family="JetBrains Mono,monospace">③ Wasm 直连 Redis</text>
+
+      <!-- ============ LEGEND ============ -->
+      <g transform="translate(1085,40)">
+        <rect x="0" y="0" width="200" height="138" rx="10" fill="rgba(15,23,42,.7)" stroke="#1e293b" stroke-width="1"/>
+        <text x="14" y="20" font-size="9" font-weight="600" fill="#94a3b8" font-family="JetBrains Mono,monospace" letter-spacing=".15em">LEGEND · 图例</text>
+        <line x1="14" y1="26" x2="186" y2="26" stroke="#1e293b"/>
+        <rect x="14" y="34" width="14" height="10" rx="2" fill="url(#g-frontend)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="36" y="43" font-size="9" fill="#94a3b8">前端 Frontend</text>
+        <rect x="14" y="50" width="14" height="10" rx="2" fill="url(#g-backend)" stroke="#34d399" stroke-width="1"/>
+        <text x="36" y="59" font-size="9" fill="#94a3b8">后端 Backend</text>
+        <rect x="14" y="66" width="14" height="10" rx="2" fill="url(#g-data)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="36" y="75" font-size="9" fill="#94a3b8">数据存储 Storage</text>
+        <rect x="14" y="82" width="14" height="10" rx="2" fill="url(#g-k8s)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="36" y="91" font-size="9" fill="#94a3b8">K8s / 网关 Cloud</text>
+        <rect x="14" y="98" width="14" height="10" rx="2" fill="url(#g-msg)" stroke="#fb923c" stroke-width="1"/>
+        <text x="36" y="107" font-size="9" fill="#94a3b8">消息队列 Bus</text>
+        <line x1="14" y1="120" x2="28" y2="120" stroke="#a78bfa" stroke-width="1.3" stroke-dasharray="3,3"/>
+        <text x="36" y="124" font-size="9" fill="#94a3b8">异步/虚线 Async</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon emerald">①</div>
+        <h3>核心配置流程</h3>
+      </div>
+      <ul>
+        <li>前端 → <code>console/controller</code> → <code>PluginUtil</code></li>
+        <li>组装 <code>WasmPlugin CRD</code> → K8s API apply</li>
+        <li>Higress Controller 监听 → xDS 下发 Envoy</li>
+        <li>限流配置由 Java 后端硬编码组装</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon amber">②</div>
+        <h3>监控数据管道</h3>
+      </div>
+      <ul>
+        <li>Envoy ALS gRPC → Go 采集器 → Kafka</li>
+        <li>Kafka → Elasticsearch（访问日志）</li>
+        <li><code>MetricsDataHandler</code> 查询 ES 聚合</li>
+        <li>结果写入 MySQL <code>service_stats_*</code></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon violet">★</div>
+        <h3>关键类速查</h3>
+      </div>
+      <ul>
+        <li><code>RoutesController</code> 路由+限流+插件 (122)</li>
+        <li><code>PluginUtil</code> K8s CRD 工具 (113)</li>
+        <li><code>MetricsDataHandlerService</code> ES→MySQL</li>
+        <li><code>KubernetesClientService</code> K8s API</li>
+      </ul>
+    </div>
+  </div>
+  <p class="footer">maas-gateway-app · admin-server / admin-module / admin-plugin / admin-infrastructure · 615 files</p>
+</div>
+</body>
+</html>
